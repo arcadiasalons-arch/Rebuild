@@ -1,21 +1,7 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { ArrowRight, Check, Loader2, MessageSquare, X } from 'lucide-react';
-import { EMAIL_RE, createBooking, sendBookingEmails, subscribeContact } from '@/lib/bookings';
-import { buildGoogleCalendarUrl, buildIcsDataUrl } from '@/lib/calendar';
-import {
-  ALL_ADDONS,
-  BRAND,
-  IMAGES,
-  SERVICES,
-  TRAVEL_OPTIONS,
-  buildSmsLink,
-  calculateEstimate,
-  getService,
-  type ServiceId,
-  type TravelId,
-} from '@/data/brand';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { ArrowRight, X } from 'lucide-react';
+import { ALL_ADDONS, BRAND, IMAGES, buildSmsLink, calculateEstimate, getService, type ServiceId, type TravelId } from '@/data/brand';
 import EstimateSummary from './EstimateSummary';
-import { MessageIcon } from './icons';
 
 interface Props {
   open: boolean;
@@ -30,11 +16,38 @@ interface Props {
   onToggleAddOn: (id: string) => void;
 }
 
-const todayISO = () => {
-  const d = new Date();
-  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-  return d.toISOString().slice(0, 10);
+const toISO = (d: Date) => {
+  const local = new Date(d);
+  local.setMinutes(local.getMinutes() - local.getTimezoneOffset());
+  return local.toISOString().slice(0, 10);
 };
+
+const tomorrowISO = () => {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return toISO(d);
+};
+
+// Next-day availability for the coming 8 weeks, closed Sundays.
+const BOOKING_WINDOW_DAYS = 56;
+const availableDates = () => {
+  const dates: string[] = [];
+  const d = new Date();
+  for (let i = 1; i <= BOOKING_WINDOW_DAYS; i++) {
+    d.setDate(d.getDate() + 1);
+    if (d.getDay() !== 0) dates.push(toISO(d));
+  }
+  return dates;
+};
+
+// On the hour and half hour, 8:00 AM through 8:00 PM.
+const TIME_SLOTS = Array.from({ length: 25 }, (_, i) => {
+  const minutes = 8 * 60 + i * 30;
+  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+});
+
+const TERMS_TEXT =
+  'Appointment availability is subject to confirmation from House Call Bronze. It is your responsibility to provide accurate information. You agree to the cancellation policy: no less than 24 hours’ notice is required, or you will be permanently banned. You agree to a release of all liability. Service workers use GPS tracking along with safety checks and are free of all liabilities. Respect and a safe place is not simply a request — it is required. By tapping Accept, you agree to the terms and conditions, confirm your digital signature, and book your appointment.';
 
 const formatDate = (iso: string) => {
   if (!iso) return '';
@@ -50,84 +63,58 @@ const formatTime = (t: string) => {
   return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 };
 
-type DoneState = {
-  emailed: boolean;
-  googleCalendarUrl: string;
-  icsUrl: string;
-};
-
-const REMINDER_MINUTES = [1440, 60] as const;
-
 export default function BookingModal(props: Props) {
   const { open, onClose, serviceId, guests, travel, addOnIds } = props;
   const service = getService(serviceId);
-  const [form, setForm] = useState({ name: '', email: '', phone: '', date: '', time: '', location: '', notes: '' });
-  const [consent, setConsent] = useState(true);
+  const [form, setForm] = useState({ name: '', date: '', time: '' });
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState<DoneState | null>(null);
-  const [submitError, setSubmitError] = useState('');
+  const [termsOpen, setTermsOpen] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const continueRef = useRef<HTMLButtonElement>(null);
+  const termsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
     document.body.style.overflow = 'hidden';
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && !busy && onClose();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (termsOpen) setTermsOpen(false);
+      else onClose();
+    };
     window.addEventListener('keydown', onKey);
-    setTimeout(() => dialogRef.current?.querySelector<HTMLInputElement>('input')?.focus(), 50);
     return () => {
       document.body.style.overflow = '';
       window.removeEventListener('keydown', onKey);
     };
-  }, [open, onClose, busy]);
+  }, [open, onClose, termsOpen]);
 
   useEffect(() => {
     if (!open) {
-      setDone(null);
-      setSubmitError('');
+      setTermsOpen(false);
+      return;
     }
+    setTimeout(() => dialogRef.current?.querySelector<HTMLInputElement>('input')?.focus(), 50);
   }, [open]);
+
+  useEffect(() => {
+    if (termsOpen) termsRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
+  }, [termsOpen]);
 
   const set = (k: keyof typeof form, v: string) => {
     setForm((f) => ({ ...f, [k]: v }));
     if (errors[k]) setErrors((e) => ({ ...e, [k]: '' }));
   };
 
+  const dateOptions = useMemo(() => (open ? availableDates() : []), [open]);
+
   const est = calculateEstimate({ serviceId, guests, travel, addOnIds });
   const chosen = ALL_ADDONS.filter((a) => addOnIds.includes(a.id));
-  const calendarDetails = useMemo(() => {
-    const location = service.onSite ? form.location.trim() : BRAND.studioAddress;
-    const notes = [
-      `Service: ${service.name}`,
-      `Name: ${form.name.trim()}`,
-      `Phone: ${form.phone.trim()}`,
-      `Email: ${form.email.trim()}`,
-      `Location type: ${service.onSite ? 'House call' : 'Studio'}`,
-      service.onSite ? `Address: ${location}` : `Studio: ${location}`,
-      chosen.length ? `Add-ons: ${chosen.map((a) => a.name).join(', ')}` : 'Add-ons: none',
-      form.notes.trim() ? `Notes: ${form.notes.trim()}` : '',
-      `Reminder alerts: 24 hours and 1 hour before`,
-      `Estimated total: ${est.label}`,
-    ]
-      .filter(Boolean)
-      .join('\n');
-
-    return {
-      title: `HouseCall — ${service.name}`,
-      description: notes,
-      location,
-      googleCalendarUrl: form.date && form.time ? buildGoogleCalendarUrl({ title: `HouseCall — ${service.name}`, description: notes, location, date: form.date, time: form.time, durationMinutes: 60 }) : '',
-      icsUrl: form.date && form.time ? buildIcsDataUrl({ title: `HouseCall — ${service.name}`, description: notes, location, date: form.date, time: form.time, durationMinutes: 60, reminderMinutes: REMINDER_MINUTES }) : '',
-    };
-  }, [chosen, est.label, form.date, form.email, form.location, form.name, form.notes, form.phone, form.time, service.name, service.onSite]);
 
   const summary = useMemo(() => {
     const lines = [
       `Hi Meesh! I'd like to book a spray tan.`,
       ``,
       `Name: ${form.name.trim()}`,
-      `Phone: ${form.phone.trim()}`,
-      `Email: ${form.email.trim()}`,
       `Service: ${service.name} (${service.priceLabel})`,
       `Location type: ${service.onSite ? 'House call' : 'Studio'}`,
     ];
@@ -135,61 +122,48 @@ export default function BookingModal(props: Props) {
     lines.push(`Add-ons: ${chosen.length ? chosen.map((a) => `${a.name} (+$${a.price})`).join(', ') : 'None'}`);
     lines.push(`Date: ${formatDate(form.date) || 'Flexible'}`);
     lines.push(`Time: ${formatTime(form.time) || 'Flexible'}`);
-    lines.push(`Address: ${service.onSite ? form.location.trim() || 'Requested in booking form' : BRAND.studioAddress}`);
-    if (form.notes.trim()) lines.push(`Notes: ${form.notes.trim()}`);
+    lines.push(`Address: ${service.onSite ? 'Requested in booking form' : BRAND.studioAddress}`);
     lines.push(``, `Estimated total: ${est.label}`);
     return lines.join('\n');
-  }, [chosen, est.label, est.people, form.date, form.email, form.location, form.name, form.notes, form.phone, form.time, service.name, service.onSite, service.perPerson, service.priceLabel]);
+  }, [chosen, est.label, est.people, form.date, form.name, form.time, service.name, service.onSite, service.perPerson, service.priceLabel]);
 
   const validate = () => {
     const e: Record<string, string> = {};
     if (!form.name.trim()) e.name = 'Please add your full name.';
-    if (!EMAIL_RE.test(form.email.trim())) e.email = 'Add a valid email for your confirmation and calendar invite.';
-    if (form.phone.replace(/\D/g, '').length < 10) e.phone = 'Add a mobile number so Meesh can reach you.';
-    if (!form.date) e.date = 'Choose a date.';
-    else if (form.date < todayISO()) e.date = 'Choose a date from today onward.';
-    if (!form.time) e.time = 'Choose a time.';
-    if (service.onSite && !form.location.trim()) e.location = 'Where should Meesh meet you?';
+    if (!form.date || form.date < tomorrowISO() || !dateOptions.includes(form.date)) e.date = 'Choose a date.';
+    if (!form.time || !TIME_SLOTS.includes(form.time)) e.time = 'Choose a time.';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  const submit = async (ev: FormEvent) => {
+  const onContinue = (ev: FormEvent) => {
     ev.preventDefault();
-    if (busy || !validate()) return;
-    setBusy(true);
-    setSubmitError('');
-    try {
-      const id = await createBooking({
-        name: form.name,
-        phone: form.phone,
-        email: form.email,
-        serviceId,
-        serviceName: service.name,
-        locationType: service.onSite ? 'house-call' : 'studio',
-        guests: est.people,
-        addOns: chosen.map(({ id, name, price }) => ({ id, name, price })),
-        date: form.date,
-        time: form.time,
-        travel: service.onSite ? travel : null,
-        location: form.location,
-        notes: form.notes,
-        estimateMin: est.min,
-        estimateMax: est.max,
-        estimateLabel: est.label,
-        summary,
-      });
+    if (validate()) setTermsOpen(true);
+  };
 
-      const [emailed] = await Promise.all([
-        sendBookingEmails(id),
-        subscribeContact({ name: form.name, email: form.email, phone: form.phone }, consent),
-      ]);
+  const closeTerms = () => {
+    setTermsOpen(false);
+    setTimeout(() => continueRef.current?.focus(), 0);
+  };
 
-      setDone({ emailed, googleCalendarUrl: calendarDetails.googleCalendarUrl, icsUrl: calendarDetails.icsUrl });
-    } catch (err) {
-      setSubmitError((err as Error).message);
-    } finally {
-      setBusy(false);
+  // Same action as the former "Send these details to Meesh" link: open a text to Meesh pre-filled with the summary.
+  const acceptTerms = () => {
+    setTermsOpen(false);
+    window.location.href = buildSmsLink(summary);
+  };
+
+  const trapTermsFocus = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'Tab') return;
+    const buttons = termsRef.current?.querySelectorAll<HTMLButtonElement>('button');
+    if (!buttons?.length) return;
+    const first = buttons[0];
+    const last = buttons[buttons.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
     }
   };
 
@@ -200,17 +174,17 @@ export default function BookingModal(props: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-stretch justify-center sm:items-center sm:p-6" role="presentation">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => !busy && onClose()} />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={onClose} />
       <div
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="booking-title"
+        aria-hidden={termsOpen || undefined}
         className="relative flex h-full w-full max-w-5xl flex-col overflow-hidden bg-ivory shadow-2xl animate-slide-in sm:h-auto sm:max-h-[92vh] md:flex-row"
       >
         <button
           onClick={onClose}
-          disabled={busy}
           className="absolute right-4 top-4 z-10 p-2 text-espresso/70 transition-colors hover:text-espresso md:text-cream/70 md:hover:text-cream"
           aria-label="Close"
         >
@@ -226,7 +200,7 @@ export default function BookingModal(props: Props) {
               <EstimateSummary serviceId={serviceId} guests={guests} travel={travel} addOnIds={addOnIds} tone="dark" />
             </div>
             <ol className="mt-9 space-y-3 border-t border-cream/15 pt-6">
-              {['Pick your service', 'Share your details', 'Get your calendar invite'].map((s, i) => (
+              {['Share your name', 'Pick a day and time', 'Meesh confirms by text'].map((s, i) => (
                 <li key={s} className="flex items-baseline gap-3 text-[13px] text-cream/70">
                   <span className="text-[10px] tracking-[0.3em] text-gold">0{i + 1}</span>
                   {s}
@@ -237,236 +211,120 @@ export default function BookingModal(props: Props) {
         </aside>
 
         <div className="flex-1 overflow-y-auto px-6 pb-10 pt-12 sm:px-10">
-          {!done ? (
-            <form onSubmit={submit} noValidate>
-              <p className="eyebrow">Book HouseCall · no account needed</p>
-              <h2 id="booking-title" className="display mt-4 text-5xl text-espresso">
-                Simple booking, <em className="italic text-bronze">done fast.</em>
-              </h2>
-              <p className="mt-4 max-w-md text-[14px] leading-relaxed text-espresso/65">
-                Share your details and choose studio or house call. Meesh will review it, then you’ll get a calendar
-                invite and confirmation by email.
-              </p>
+          <form onSubmit={onContinue} noValidate>
+            <p className="eyebrow">Book HouseCall · no account needed</p>
+            <h2 id="booking-title" className="display mt-4 text-5xl text-espresso">
+              Simple booking, <em className="italic text-bronze">done fast.</em>
+            </h2>
 
-              <div className="mt-10 grid grid-cols-1 gap-x-8 gap-y-7 sm:grid-cols-2">
-                <div>
-                  <label htmlFor="bk-name" className="field-label">
-                    Full name
-                  </label>
-                  <input
-                    id="bk-name"
-                    className="field"
-                    value={form.name}
-                    onChange={(e) => set('name', e.target.value)}
-                    autoComplete="name"
-                    placeholder="Your full name"
-                    required
-                  />
-                  <Err k="name" />
-                </div>
-                <div>
-                  <label htmlFor="bk-email" className="field-label">
-                    Email
-                  </label>
-                  <input
-                    id="bk-email"
-                    type="email"
-                    inputMode="email"
-                    className="field"
-                    value={form.email}
-                    onChange={(e) => set('email', e.target.value)}
-                    autoComplete="email"
-                    placeholder="you@email.com"
-                    required
-                  />
-                  <Err k="email" />
-                </div>
-                <div className="sm:col-span-2">
-                  <label htmlFor="bk-phone" className="field-label">
-                    Mobile phone
-                  </label>
-                  <input
-                    id="bk-phone"
-                    type="tel"
-                    className="field"
-                    value={form.phone}
-                    onChange={(e) => set('phone', e.target.value)}
-                    autoComplete="tel"
-                    placeholder="(509) 000-0000"
-                    required
-                  />
-                  <Err k="phone" />
-                </div>
-
-                <div className={service.perPerson ? '' : 'sm:col-span-2'}>
-                  <label htmlFor="bk-service" className="field-label">
-                    Service
-                  </label>
-                  <select
-                    id="bk-service"
-                    className="field cursor-pointer"
-                    value={serviceId}
-                    onChange={(e) => props.onService(e.target.value as ServiceId)}
-                  >
-                    {SERVICES.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name} — {s.priceLabel}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                {service.perPerson && (
-                  <div>
-                    <label htmlFor="bk-guests" className="field-label">
-                      Guests (min. {service.minPeople})
-                    </label>
-                    <input
-                      id="bk-guests"
-                      type="number"
-                      min={service.minPeople}
-                      max={20}
-                      className="field"
-                      value={est.people}
-                      onChange={(e) => props.onGuests(Math.max(service.minPeople ?? 1, Math.min(20, Number(e.target.value) || 0)))}
-                    />
-                  </div>
-                )}
-
-                <div>
-                  <label htmlFor="bk-date" className="field-label">
-                    Date
-                  </label>
-                  <input id="bk-date" type="date" min={todayISO()} className="field" value={form.date} onChange={(e) => set('date', e.target.value)} />
-                  <Err k="date" />
-                </div>
-                <div>
-                  <label htmlFor="bk-time" className="field-label">
-                    Time
-                  </label>
-                  <input id="bk-time" type="time" className="field" value={form.time} onChange={(e) => set('time', e.target.value)} />
-                  <Err k="time" />
-                </div>
-
-                {service.onSite ? (
-                  <div className="sm:col-span-2">
-                    <label htmlFor="bk-location" className="field-label">
-                      House call address
-                    </label>
-                    <input
-                      id="bk-location"
-                      className="field"
-                      value={form.location}
-                      onChange={(e) => set('location', e.target.value)}
-                      autoComplete="street-address"
-                      placeholder="Home or hotel address"
-                    />
-                    <Err k="location" />
-                  </div>
-                ) : (
-                  <div className="sm:col-span-2 border-l border-gold pl-4 text-[13px] leading-relaxed text-espresso/60">
-                    Studio visits use {BRAND.studioAddress}.
-                  </div>
-                )}
-
-                <div className="sm:col-span-2">
-                  <label htmlFor="bk-notes" className="field-label">
-                    Notes for Meesh
-                  </label>
-                  <textarea
-                    id="bk-notes"
-                    rows={3}
-                    className="field resize-none"
-                    value={form.notes}
-                    onChange={(e) => set('notes', e.target.value)}
-                    placeholder="Skin prep, event date, desired depth, parking notes…"
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="flex cursor-pointer items-start gap-3 text-[12px] leading-relaxed text-espresso/65">
-                    <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 h-4 w-4 accent-espresso" />
-                    <span>Text me booking updates and reminders. Msg & data rates may apply. Reply STOP to unsubscribe.</span>
-                  </label>
-                </div>
+            <div className="mt-10 grid grid-cols-1 gap-x-8 gap-y-7 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <label htmlFor="bk-name" className="field-label">
+                  Full name
+                </label>
+                <input
+                  id="bk-name"
+                  className="field"
+                  value={form.name}
+                  onChange={(e) => set('name', e.target.value)}
+                  autoComplete="name"
+                  placeholder="Your full name"
+                  required
+                  aria-invalid={!!errors.name || undefined}
+                />
+                <Err k="name" />
               </div>
 
-              <div className="mt-10 bg-cream p-6 text-espresso md:hidden">
-                <EstimateSummary serviceId={serviceId} guests={guests} travel={travel} addOnIds={addOnIds} tone="light" compact />
+              <div>
+                <label htmlFor="bk-date" className="field-label">
+                  Pick a day
+                </label>
+                <select
+                  id="bk-date"
+                  className="field cursor-pointer"
+                  value={form.date}
+                  onChange={(e) => set('date', e.target.value)}
+                  required
+                  aria-invalid={!!errors.date || undefined}
+                >
+                  <option value="" disabled>
+                    Select a day
+                  </option>
+                  {dateOptions.map((d) => (
+                    <option key={d} value={d}>
+                      {formatDate(d)}
+                    </option>
+                  ))}
+                </select>
+                <Err k="date" />
               </div>
-
-              {submitError && <p className="mt-6 text-[13px] text-destructive">{submitError}</p>}
-
-              <button type="submit" disabled={busy} aria-busy={busy} className="btn-primary group mt-8 w-full disabled:cursor-wait disabled:opacity-70 sm:w-auto">
-                {busy ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.5} /> Saving your booking…
-                  </>
-                ) : (
-                  <>
-                    Send booking request
-                    <ArrowRight className="h-3.5 w-3.5 transition-transform duration-500 group-hover:translate-x-1" strokeWidth={1.5} />
-                  </>
-                )}
-              </button>
-              <p className="mt-4 text-[12px] leading-relaxed text-espresso/50">
-                Prefer to text?{' '}
-                <a href={buildSmsLink(summary)} className="text-espresso underline decoration-gold underline-offset-4">
-                  Send these details to {BRAND.phoneDisplay}
-                </a>
-                .
-              </p>
-            </form>
-          ) : (
-            <div className="flex h-full flex-col">
-              <span className="flex h-12 w-12 items-center justify-center rounded-full border border-gold text-gold">
-                <Check className="h-5 w-5" strokeWidth={1.3} />
-              </span>
-              <p className="eyebrow mt-8">Booking received</p>
-              <h2 id="booking-title" className="display mt-4 text-5xl text-espresso">
-                You’re on <em className="italic text-bronze">Meesh’s list.</em>
-              </h2>
-              <p className="mt-5 max-w-md text-[14px] leading-relaxed text-espresso/65">
-                {done.emailed ? (
-                  <>
-                    Your confirmation is on its way to <span className="text-espresso">{form.email}</span>. Meesh will review
-                    the request and send the final approval. Tap the calendar button below and your device will open the
-                    event with the details filled in.
-                  </>
-                ) : (
-                  <>
-                    Meesh will reach out at <span className="text-espresso">{form.email}</span> or{' '}
-                    <span className="text-espresso">{form.phone}</span> to confirm your time and details.
-                  </>
-                )}
-              </p>
-              <div className="mt-4 max-w-md text-[13px] text-espresso/60">
-                <p>{service.onSite ? `House call · ${form.location.trim() || 'Address provided in booking form'}` : BRAND.studioAddress}</p>
-                <p className="mt-1">
-                  {formatDate(form.date)} · {formatTime(form.time)}
-                </p>
+              <div>
+                <label htmlFor="bk-time" className="field-label">
+                  Pick a time
+                </label>
+                <select
+                  id="bk-time"
+                  className="field cursor-pointer"
+                  value={form.time}
+                  onChange={(e) => set('time', e.target.value)}
+                  required
+                  aria-invalid={!!errors.time || undefined}
+                >
+                  <option value="" disabled>
+                    Select a time
+                  </option>
+                  {TIME_SLOTS.map((t) => (
+                    <option key={t} value={t}>
+                      {formatTime(t)}
+                    </option>
+                  ))}
+                </select>
+                <Err k="time" />
               </div>
-              <div className="mt-8 border border-espresso/15 bg-cream/60 p-5 text-[13px] leading-relaxed text-espresso/75">
-                <p>{service.name}</p>
-                <p className="mt-1">Estimated total: {est.label}</p>
-              </div>
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <a href={done.icsUrl} download="housecall-booking.ics" className="btn-primary">
-                  Add to my calendar
-                </a>
-                <a href={done.googleCalendarUrl} target="_blank" rel="noreferrer" className="btn-ghost">
-                  <MessageSquare /> Open Google Calendar
-                </a>
-                <button type="button" onClick={onClose} className="btn-ghost">
-                  Done
-                </button>
-              </div>
-              <p className="mt-4 text-[12px] leading-relaxed text-espresso/50">
-                Calendar invite includes reminders 24 hours and 1 hour before the appointment.
-              </p>
             </div>
-          )}
+
+            <button ref={continueRef} type="submit" className="btn-primary group mt-10 w-full sm:w-auto">
+              Continue
+              <ArrowRight className="h-3.5 w-3.5 transition-transform duration-500 group-hover:translate-x-1" strokeWidth={1.5} />
+            </button>
+
+            <div className="mt-10 bg-cream p-6 text-espresso md:hidden">
+              <EstimateSummary serviceId={serviceId} guests={guests} travel={travel} addOnIds={addOnIds} tone="light" compact />
+            </div>
+          </form>
         </div>
       </div>
+
+      {termsOpen && (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center sm:p-6" role="presentation">
+          <div className="absolute inset-0 bg-black/60 animate-fade-in" onClick={closeTerms} />
+          <div
+            ref={termsRef}
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="terms-title"
+            aria-describedby="terms-text"
+            onKeyDown={trapTermsFocus}
+            className="relative max-h-[90vh] w-full max-w-lg overflow-y-auto bg-ivory px-6 pb-8 pt-10 shadow-2xl animate-slide-in sm:px-10"
+          >
+            <p className="eyebrow">Before you book</p>
+            <h2 id="terms-title" className="display mt-4 text-4xl text-espresso">
+              Terms &amp; <em className="italic text-bronze">conditions</em>
+            </h2>
+            <p id="terms-text" className="mt-5 text-[14px] leading-relaxed text-espresso/75">
+              {TERMS_TEXT}
+            </p>
+            <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button type="button" onClick={closeTerms} className="btn-ghost w-full sm:w-auto">
+                Cancel
+              </button>
+              <button type="button" onClick={acceptTerms} className="btn-primary w-full sm:w-auto">
+                Accept
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
