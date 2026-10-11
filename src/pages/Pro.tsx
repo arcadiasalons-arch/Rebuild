@@ -1,8 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import BookingModal from '@/components/hcb/BookingModal';
+import BrandImage from '@/components/hcb/BrandImage';
 import { getProvider, safeWebUrl } from '@/data/providers';
+import { IMAGES } from '@/data/brand';
 import NotFound from './NotFound';
+
+const BookingModal = lazy(() => import('@/components/hcb/BookingModal'));
 
 export default function Pro() {
   const { slug = '' } = useParams();
@@ -38,18 +41,34 @@ export default function Pro() {
           <button type="button" onClick={() => setOpen(true)} className="btn-primary mt-6">Request a booking with {pro.name}</button>
           <Link to="/join" className="mt-8 block text-sm underline underline-offset-4">Request to join the House Call pros</Link>
         </div>
-        {image && <img src={image} alt={pro.name} className="w-full object-cover" />}
+        {image && (
+          <BrandImage
+            src={image}
+            fallback={IMAGES.fallbackSilk}
+            alt={pro.name}
+            width={640}
+            height={800}
+            sizes="(min-width: 768px) 50vw, 100vw"
+            loading="lazy"
+            className="w-full"
+            imgClassName="object-cover"
+          />
+        )}
       </main>
-      <BookingModal
-        key={pro.slug}
-        open={open}
-        onClose={close}
-        initialProviderSlug={pro.slug}
-        serviceId="house-call"
-        guests={3}
-        travel="within"
-        addOnIds={[]}
-      />
+      <Suspense fallback={null}>
+        {open && (
+          <BookingModal
+            key={pro.slug}
+            open={open}
+            onClose={close}
+            initialProviderSlug={pro.slug}
+            serviceId="house-call"
+            guests={3}
+            travel="within"
+            addOnIds={[]}
+          />
+        )}
+      </Suspense>
     </div>
   );
 }

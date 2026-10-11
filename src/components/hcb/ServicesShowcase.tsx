@@ -24,6 +24,10 @@ export default function ServicesShowcase({ selected, onSelect, onBook }: Props) 
               src={IMAGES.artistCutout}
               alt="Meesh, spray tan artist, holding two spray-tan guns overhead"
               loading="lazy"
+              width={1125}
+              height={1253}
+              sizes="(min-width: 1024px) 38vw, 100vw"
+              decoding="async"
               className="aspect-[1125/1253] w-full object-cover"
             />
             <figcaption className="absolute bottom-6 left-6 text-[10px] uppercase tracking-[0.34em] text-gold">

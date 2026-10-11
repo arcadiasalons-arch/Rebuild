@@ -61,6 +61,7 @@ export default function Hero({ onBook }: HeroProps) {
               alt="House Call Bronze custom spray tan results in Spokane — three sun-kissed bronzed-skin close-ups in swimwear."
               width={1476}
               height={704}
+              sizes="(min-width: 1024px) 58vw, 100vw"
               loading="eager"
               fetchPriority="high"
               decoding="async"

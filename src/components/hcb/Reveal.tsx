@@ -39,8 +39,12 @@ export default function Reveal({ children, className = '', delay = 0, as: Tag = 
   return (
     <Tag
       ref={ref}
-      style={{ transitionDelay: `${delay}ms` }}
-      className={`transition-all duration-[1100ms] ease-[cubic-bezier(.2,.7,.2,1)] ${visible ? shown : hidden} ${className}`}
+      style={{
+        transitionDelay: `${delay}ms`,
+        transitionDuration: '1100ms',
+        transitionTimingFunction: 'cubic-bezier(.2,.7,.2,1)',
+      }}
+      className={`transition-all ${visible ? shown : hidden} ${className}`}
     >
       {children}
     </Tag>

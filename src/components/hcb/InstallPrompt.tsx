@@ -185,7 +185,15 @@ export default function InstallPrompt() {
               className="flex items-center gap-3 rounded-full py-0.5 pl-0.5 pr-3 text-left transition-colors hover:bg-espresso/5"
               aria-haspopup="dialog"
             >
-              <img src={IMAGES.monogram} alt="" className="h-9 w-9 rounded-full object-cover" />
+              <img
+                src={IMAGES.monogram}
+                alt=""
+                className="h-9 w-9 rounded-full object-cover"
+                loading="lazy"
+                width={512}
+                height={512}
+                decoding="async"
+              />
               <span className="leading-tight">
                 <span className="block text-[11px] font-medium uppercase tracking-[0.24em]">Get the app</span>
                 <span className="block text-[11px] text-espresso/60">
@@ -224,7 +232,15 @@ export default function InstallPrompt() {
 
             <div className="px-6 pb-8 pt-8 sm:px-9">
               <div className="flex items-center gap-4">
-                <img src={IMAGES.monogram} alt="" className="h-14 w-14 rounded-[14px] shadow-md" />
+                <img
+                  src={IMAGES.monogram}
+                  alt=""
+                  className="h-14 w-14 rounded-[14px] shadow-md"
+                  loading="lazy"
+                  width={512}
+                  height={512}
+                  decoding="async"
+                />
                 <div>
                   <p className="eyebrow">Get the app</p>
                   <h2 id="get-app-title" className="mt-1 font-serif text-3xl font-light leading-tight">

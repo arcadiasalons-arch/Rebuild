@@ -239,7 +239,18 @@ export default function BookingModal(props: Props) {
         </button>
 
         <aside className="relative hidden w-[38%] shrink-0 overflow-y-auto bg-espresso text-cream md:block">
-          {image && <img src={image} alt="" className="h-56 w-full bg-[#1d1c20] object-cover object-[50%_20%]" />}
+          {image && (
+            <img
+              src={image}
+              alt=""
+              className="h-56 w-full bg-[#1d1c20] object-cover object-[50%_20%]"
+              loading="lazy"
+              width={1125}
+              height={1253}
+              sizes="(min-width: 768px) 38vw, 100vw"
+              decoding="async"
+            />
+          )}
           <div className="relative p-9">
             <p className="text-[10px] uppercase tracking-[0.32em] text-gold">{meeshMenu ? 'Meesh’s menu' : provider?.name}</p>
             <h3 className="mt-3 font-serif text-4xl font-light italic leading-tight">{meeshMenu ? service.name : 'Your booking request'}</h3>

@@ -6,6 +6,11 @@ interface BrandImageProps {
   fallback?: string;
   className?: string;
   imgClassName?: string;
+  width?: number;
+  height?: number;
+  sizes?: string;
+  loading?: 'eager' | 'lazy';
+  fetchPriority?: 'high' | 'low' | 'auto';
   eager?: boolean;
 }
 
@@ -19,6 +24,11 @@ export default function BrandImage({
   fallback,
   className = '',
   imgClassName = '',
+  width,
+  height,
+  sizes,
+  loading,
+  fetchPriority,
   eager = false,
 }: BrandImageProps) {
   const [current, setCurrent] = useState(src);
@@ -29,7 +39,12 @@ export default function BrandImage({
       <img
         src={current}
         alt={alt}
-        loading={eager ? 'eager' : 'lazy'}
+        width={width}
+        height={height}
+        sizes={sizes}
+        loading={loading ?? (eager ? 'eager' : 'lazy')}
+        fetchPriority={fetchPriority ?? (eager ? 'high' : 'low')}
+        decoding="async"
         onLoad={() => setLoaded(true)}
         onError={() => {
           if (fallback && current !== fallback) setCurrent(fallback);

@@ -1,6 +1,12 @@
 // HOUSE CALL BRONZE — single source of truth.
 // Pricing and business details must match the owner's supplied menu exactly.
 
+export const SITE = {
+  name: 'House Call Bronze',
+  url: 'https://housecallbronze.com',
+  language: 'en',
+};
+
 export const BRAND = {
   name: 'HOUSE CALL BRONZE',
   artist: 'MEESH',
