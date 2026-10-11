@@ -8,6 +8,8 @@ import { ThemeProvider } from "@/components/theme-provider";
 import Index from "./pages/Index";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
+import Pro from "./pages/Pro";
+import Join from "./pages/Join";
 
 const queryClient = new QueryClient();
 
@@ -21,6 +23,8 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/admin" element={<Admin />} />
+            <Route path="/pros/:slug" element={<Pro />} />
+            <Route path="/join" element={<Join />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </HashRouter>
