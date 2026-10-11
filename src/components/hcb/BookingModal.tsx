@@ -47,7 +47,7 @@ const TIME_SLOTS = Array.from({ length: 25 }, (_, i) => {
 });
 
 const TERMS_TEXT =
-  'Appointment availability is subject to confirmation from House Call Bronze. It is your responsibility to provide accurate information. You agree to the cancellation policy: no less than 24 hours’ notice is required, or you will be permanently banned. You agree to a release of all liability. Service workers use GPS tracking along with safety checks and are free of all liabilities. Respect and a safe place is not simply a request — it is required. By tapping Accept, you agree to the terms and conditions, confirm your digital signature, and book your appointment.';
+  'Before You Book\n\nAll appointments are requests and are not confirmed until Meesh provides final approval based on current availability. Please provide accurate information and allow 24 hours\' notice for cancellations or rescheduling. By submitting a request, you agree to these terms and acknowledge that services may be declined or rescheduled when necessary for safety or scheduling reasons.';
 
 const formatDate = (iso: string) => {
   if (!iso) return '';
