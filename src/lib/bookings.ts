@@ -67,23 +67,3 @@ export async function sendBookingEmails(appointmentId: string): Promise<boolean>
     return false;
   }
 }
-
-/** Adds the client to the project CRM contact list. Never throws. */
-export async function subscribeContact(b: Pick<BookingInput, 'name' | 'email' | 'phone'>, smsOptIn: boolean) {
-  try {
-    await fetch('https://famous.ai/api/crm/6ab7c11864006fdf3a05a860/subscribe', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: b.email.trim(),
-        name: b.name.trim() || undefined,
-        phone: b.phone.trim() || undefined,
-        sms_opt_in: smsOptIn === true,
-        source: 'booking',
-        tags: ['booking', 'client'],
-      }),
-    });
-  } catch {
-    /* non-blocking */
-  }
-}
