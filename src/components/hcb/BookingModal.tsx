@@ -91,6 +91,7 @@ export default function BookingModal(props: Props) {
   useEffect(() => {
     if (!open) {
       setTermsOpen(false);
+      setForm((f) => ({ ...f, date: '' }));
       return;
     }
     setTimeout(() => dialogRef.current?.querySelector<HTMLInputElement>('input')?.focus(), 50);
@@ -122,7 +123,7 @@ export default function BookingModal(props: Props) {
     lines.push(`Add-ons: ${chosen.length ? chosen.map((a) => `${a.name} (+$${a.price})`).join(', ') : 'None'}`);
     lines.push(`Date: ${formatDate(form.date) || 'Flexible'}`);
     lines.push(`Time: ${formatTime(form.time) || 'Flexible'}`);
-    lines.push(`Address: ${service.onSite ? 'Requested in booking form' : BRAND.studioAddress}`);
+    lines.push(`Address: ${service.onSite ? 'To be confirmed by text' : BRAND.studioAddress}`);
     lines.push(``, `Estimated total: ${est.label}`);
     return lines.join('\n');
   }, [chosen, est.label, est.people, form.date, form.name, form.time, service.name, service.onSite, service.perPerson, service.priceLabel]);
@@ -148,7 +149,7 @@ export default function BookingModal(props: Props) {
 
   // Same action as the former "Send these details to Meesh" link: open a text to Meesh pre-filled with the summary.
   const acceptTerms = () => {
-    setTermsOpen(false);
+    closeTerms();
     window.location.href = buildSmsLink(summary);
   };
 
