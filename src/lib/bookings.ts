@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { v4 as uuid } from 'uuid';
 import type { ServiceId, TravelId } from '@/data/brand';
 
 export interface BookingInput {
@@ -23,14 +24,6 @@ export interface BookingInput {
 }
 
 export const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-
-const uuid = () =>
-  typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? crypto.randomUUID()
-    : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-        const r = (Math.random() * 16) | 0;
-        return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
-      });
 
 /** Saves a guest booking. Returns the new id, or throws with a friendly message. */
 export async function createBooking(b: BookingInput): Promise<string> {
