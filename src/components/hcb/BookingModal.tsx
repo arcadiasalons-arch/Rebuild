@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { ArrowRight, X } from 'lucide-react';
-import { ALL_ADDONS, BRAND, IMAGES, buildSmsLink, calculateEstimate, getService, type ServiceId, type TravelId } from '@/data/brand';
+import { Link } from 'react-router-dom';
+import { ALL_ADDONS, BRAND, IMAGES, calculateEstimate, getService, type ServiceId, type TravelId } from '@/data/brand';
+import { getProvider, getPublishedProviders, providerSmsLink, safeWebUrl } from '@/data/providers';
 import EstimateSummary from './EstimateSummary';
 
 interface Props {
@@ -10,10 +12,7 @@ interface Props {
   guests: number;
   travel: TravelId;
   addOnIds: string[];
-  onService: (id: ServiceId) => void;
-  onTravel: (t: TravelId) => void;
-  onGuests: (n: number) => void;
-  onToggleAddOn: (id: string) => void;
+  initialProviderSlug?: string;
 }
 
 const toISO = (d: Date) => {
@@ -28,14 +27,14 @@ const tomorrowISO = () => {
   return toISO(d);
 };
 
-// Next-day availability for the coming 8 weeks, closed Sundays.
+// Request dates for the coming 8 weeks; these are not confirmed availability.
 const BOOKING_WINDOW_DAYS = 56;
-const availableDates = () => {
+const availableDates = (includeSundays = false) => {
   const dates: string[] = [];
   const d = new Date();
   for (let i = 1; i <= BOOKING_WINDOW_DAYS; i++) {
     d.setDate(d.getDate() + 1);
-    if (d.getDay() !== 0) dates.push(toISO(d));
+    if (includeSundays || d.getDay() !== 0) dates.push(toISO(d));
   }
   return dates;
 };
@@ -45,9 +44,6 @@ const TIME_SLOTS = Array.from({ length: 25 }, (_, i) => {
   const minutes = 8 * 60 + i * 30;
   return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
 });
-
-const TERMS_TEXT =
-  'Before You Book\n\nAll appointments are requests and are not confirmed until Meesh provides final approval based on current availability. Please provide accurate information and allow 24 hours\' notice for cancellations or rescheduling. By submitting a request, you agree to these terms and acknowledge that services may be declined or rescheduled when necessary for safety or scheduling reasons.';
 
 const formatDate = (iso: string) => {
   if (!iso) return '';
@@ -66,7 +62,14 @@ const formatTime = (t: string) => {
 export default function BookingModal(props: Props) {
   const { open, onClose, serviceId, guests, travel, addOnIds } = props;
   const service = getService(serviceId);
-  const [form, setForm] = useState({ name: '', date: '', time: '' });
+  const [providerSlug, setProviderSlug] = useState(props.initialProviderSlug ?? '');
+  const provider = getProvider(providerSlug);
+  const meeshMenu = !providerSlug || provider?.menu === 'meesh';
+  const recipient = provider?.name ?? 'Meesh';
+  const canText = (!providerSlug || !!provider) && !!providerSmsLink(provider, '');
+  const image = meeshMenu ? IMAGES.artistCutout : safeWebUrl(provider?.imageUrl);
+  const termsText = `All appointments are requests and are not confirmed until ${provider ? provider.name : 'a pro'} confirms availability and the final details by text. ${!providerSlug ? 'Meesh receives requests with no pro preference for coordination; a pro is not automatically assigned. ' : ''}Please provide accurate information and allow 24 hours' notice for cancellations or rescheduling. By submitting a request, you agree to these terms and acknowledge that services may be declined or rescheduled when necessary for safety or scheduling reasons.`;
+  const [form, setForm] = useState({ name: '', date: '', time: '', request: '' });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [termsOpen, setTermsOpen] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -75,6 +78,8 @@ export default function BookingModal(props: Props) {
 
   useEffect(() => {
     if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    const previousFocus = document.activeElement as HTMLElement | null;
     document.body.style.overflow = 'hidden';
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
@@ -83,10 +88,15 @@ export default function BookingModal(props: Props) {
     };
     window.addEventListener('keydown', onKey);
     return () => {
-      document.body.style.overflow = '';
+      document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', onKey);
+      previousFocus?.focus();
     };
   }, [open, onClose, termsOpen]);
+
+  useEffect(() => {
+    if (open) setProviderSlug(props.initialProviderSlug ?? '');
+  }, [open, props.initialProviderSlug]);
 
   useEffect(() => {
     if (!open) {
@@ -94,7 +104,8 @@ export default function BookingModal(props: Props) {
       setForm((f) => ({ ...f, date: '' }));
       return;
     }
-    setTimeout(() => dialogRef.current?.querySelector<HTMLInputElement>('input')?.focus(), 50);
+    const timer = setTimeout(() => dialogRef.current?.querySelector<HTMLInputElement>('input')?.focus(), 50);
+    return () => clearTimeout(timer);
   }, [open]);
 
   useEffect(() => {
@@ -106,33 +117,42 @@ export default function BookingModal(props: Props) {
     if (errors[k]) setErrors((e) => ({ ...e, [k]: '' }));
   };
 
-  const dateOptions = useMemo(() => (open ? availableDates() : []), [open]);
+  const dateOptions = useMemo(() => (open ? availableDates(!meeshMenu) : []), [open, meeshMenu]);
 
   const est = calculateEstimate({ serviceId, guests, travel, addOnIds });
   const chosen = ALL_ADDONS.filter((a) => addOnIds.includes(a.id));
 
   const summary = useMemo(() => {
     const lines = [
-      `Hi Meesh! I'd like to book a spray tan.`,
+      `Hi ${recipient}! I'd like to request a spray tan.`,
       ``,
       `Name: ${form.name.trim()}`,
-      `Service: ${service.name} (${service.priceLabel})`,
-      `Location type: ${service.onSite ? 'House call' : 'Studio'}`,
+      `Pro preference: ${provider ? provider.name : 'Any sunless pro — no preference'}`,
     ];
-    if (service.perPerson) lines.push(`Guests: ${est.people}`);
-    lines.push(`Add-ons: ${chosen.length ? chosen.map((a) => `${a.name} (+$${a.price})`).join(', ') : 'None'}`);
+    if (!providerSlug) lines.push('To Meesh for coordination; no pro assigned.', 'The menu and estimate below are Meesh’s only; another pro will confirm their own services and pricing.');
+    if (meeshMenu) {
+      lines.push(`Service: ${service.name} (${service.priceLabel})`);
+      lines.push(`Location type: ${service.onSite ? 'House call' : 'Studio'}`);
+      if (service.perPerson) lines.push(`Guests: ${est.people}`);
+      lines.push(`Add-ons: ${chosen.length ? chosen.map((a) => `${a.name} (+$${a.price})`).join(', ') : 'None'}`);
+      lines.push(`Address: ${service.onSite ? 'To be confirmed by text' : BRAND.studioAddress}`);
+      lines.push(`Estimated total (Meesh’s menu): ${est.label}`);
+    } else {
+      lines.push(`Service request: ${form.request.trim()}`);
+      lines.push('Services, location, and pricing to be confirmed directly with the pro.');
+    }
     lines.push(`Date: ${formatDate(form.date) || 'Flexible'}`);
     lines.push(`Time: ${formatTime(form.time) || 'Flexible'}`);
-    lines.push(`Address: ${service.onSite ? 'To be confirmed by text' : BRAND.studioAddress}`);
-    lines.push(``, `Estimated total: ${est.label}`);
     return lines.join('\n');
-  }, [chosen, est.label, est.people, form.date, form.name, form.time, service.name, service.onSite, service.perPerson, service.priceLabel]);
+  }, [chosen, est.label, est.people, form, service, provider, providerSlug, meeshMenu, recipient]);
 
   const validate = () => {
     const e: Record<string, string> = {};
     if (!form.name.trim()) e.name = 'Please add your full name.';
     if (!form.date || form.date < tomorrowISO() || !dateOptions.includes(form.date)) e.date = 'Choose a date.';
     if (!form.time || !TIME_SLOTS.includes(form.time)) e.time = 'Choose a time.';
+    if (!meeshMenu && !form.request.trim()) e.request = 'Tell your pro what you’d like to book.';
+    if (!canText) e.provider = 'This pro has no booking text contact listed. Choose another pro or no preference.';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -147,10 +167,27 @@ export default function BookingModal(props: Props) {
     setTimeout(() => continueRef.current?.focus(), 0);
   };
 
-  // Same action as the former "Send these details to Meesh" link: open a text to Meesh pre-filled with the summary.
+  // Open the selected pro's text contact; only no-preference requests go to Meesh for coordination.
   const acceptTerms = () => {
+    const href = canText && providerSmsLink(provider, summary);
+    if (!href) return;
     closeTerms();
-    window.location.href = buildSmsLink(summary);
+    window.location.href = href;
+  };
+
+  const trapDialogFocus = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'Tab') return;
+    const controls = dialogRef.current?.querySelectorAll<HTMLElement>('button, input, select, textarea, a[href]');
+    if (!controls?.length) return;
+    const first = controls[0];
+    const last = controls[controls.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
   };
 
   const trapTermsFocus = (e: ReactKeyboardEvent<HTMLDivElement>) => {
@@ -182,6 +219,7 @@ export default function BookingModal(props: Props) {
         aria-modal="true"
         aria-labelledby="booking-title"
         aria-hidden={termsOpen || undefined}
+        onKeyDown={trapDialogFocus}
         className="relative flex h-full w-full max-w-5xl flex-col overflow-hidden bg-ivory shadow-2xl animate-slide-in sm:h-auto sm:max-h-[92vh] md:flex-row"
       >
         <button
@@ -193,15 +231,15 @@ export default function BookingModal(props: Props) {
         </button>
 
         <aside className="relative hidden w-[38%] shrink-0 overflow-y-auto bg-espresso text-cream md:block">
-          <img src={IMAGES.artistCutout} alt="" className="h-56 w-full bg-[#1d1c20] object-cover object-[50%_20%]" />
+          {image && <img src={image} alt="" className="h-56 w-full bg-[#1d1c20] object-cover object-[50%_20%]" />}
           <div className="relative p-9">
-            <p className="text-[10px] uppercase tracking-[0.32em] text-gold">HouseCall booking</p>
-            <h3 className="mt-3 font-serif text-4xl font-light italic leading-tight">{service.name}</h3>
+            <p className="text-[10px] uppercase tracking-[0.32em] text-gold">{meeshMenu ? 'Meesh’s menu' : provider?.name}</p>
+            <h3 className="mt-3 font-serif text-4xl font-light italic leading-tight">{meeshMenu ? service.name : 'Your booking request'}</h3>
             <div className="mt-7">
-              <EstimateSummary serviceId={serviceId} guests={guests} travel={travel} addOnIds={addOnIds} tone="dark" />
+              {meeshMenu ? <EstimateSummary serviceId={serviceId} guests={guests} travel={travel} addOnIds={addOnIds} tone="dark" /> : <p className="text-sm leading-relaxed text-cream/70">Your pro will confirm their own services, pricing, and availability.</p>}
             </div>
             <ol className="mt-9 space-y-3 border-t border-cream/15 pt-6">
-              {['Share your name', 'Pick a day and time', 'Meesh confirms by text'].map((s, i) => (
+              {['Share your name and pro preference', 'Request a day and time', provider ? `${provider.name} confirms by text` : 'Meesh helps coordinate by text'].map((s, i) => (
                 <li key={s} className="flex items-baseline gap-3 text-[13px] text-cream/70">
                   <span className="text-[10px] tracking-[0.3em] text-gold">0{i + 1}</span>
                   {s}
@@ -213,12 +251,31 @@ export default function BookingModal(props: Props) {
 
         <div className="flex-1 overflow-y-auto px-6 pb-10 pt-12 sm:px-10">
           <form onSubmit={onContinue} noValidate>
-            <p className="eyebrow">Book HouseCall · no account needed</p>
-            <h2 id="booking-title" className="display mt-4 text-5xl text-espresso">
-              Simple booking, <em className="italic text-bronze">done fast.</em>
+            <h2 id="booking-title" className="display text-4xl text-espresso sm:text-5xl">
+              House Call <em className="italic text-bronze">Bronze</em>
             </h2>
+            <p className="mt-5 text-[15px] leading-relaxed text-espresso/75">Select a House Call pro, or leave blank for any sunless pro.</p>
 
             <div className="mt-10 grid grid-cols-1 gap-x-8 gap-y-7 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <label htmlFor="bk-provider" className="field-label">House Call pro (optional)</label>
+                <select id="bk-provider" className="field cursor-pointer" value={providerSlug} onChange={(e) => { setProviderSlug(e.target.value); setErrors({}); }} aria-describedby="bk-provider-help" aria-invalid={!!errors.provider || undefined}>
+                  <option value="">Any sunless pro</option>
+                  {getPublishedProviders().map((pro) => <option key={pro.slug} value={pro.slug}>{pro.name}</option>)}
+                </select>
+                <p id="bk-provider-help" className="mt-3 text-[13px] leading-relaxed text-espresso/65">
+                  {providerSlug
+                    ? canText ? `Your text goes directly to ${recipient}, who will confirm the details.` : 'This pro has no booking text contact listed. Choose another pro or no preference.'
+                    : 'No preference? Meesh receives your text to help coordinate. No pro is automatically assigned. The estimate is from Meesh’s menu only; another pro will confirm their own services and pricing.'}
+                </p>
+                <Err k="provider" />
+                {provider && <Link to={`/pros/${provider.slug}`} onClick={onClose} className="mt-3 inline-block text-sm underline underline-offset-4">About {provider.name}</Link>}
+              </div>
+              {!meeshMenu && <div className="sm:col-span-2">
+                <label htmlFor="bk-request" className="field-label">What would you like to book?</label>
+                <textarea id="bk-request" className="field min-h-24" value={form.request} onChange={(e) => set('request', e.target.value)} maxLength={1000} required aria-invalid={!!errors.request || undefined} />
+                <Err k="request" />
+              </div>}
               <div className="sm:col-span-2">
                 <label htmlFor="bk-name" className="field-label">
                   Full name
@@ -283,15 +340,18 @@ export default function BookingModal(props: Props) {
                 <Err k="time" />
               </div>
             </div>
+            <p className="mt-6 text-[13px] leading-relaxed text-espresso/65">These are preferred dates and times, not confirmed openings. After accepting the terms, your messaging app opens with the request. You’ll still need to send it.</p>
 
             <button ref={continueRef} type="submit" className="btn-primary group mt-10 w-full sm:w-auto">
               Continue
               <ArrowRight className="h-3.5 w-3.5 transition-transform duration-500 group-hover:translate-x-1" strokeWidth={1.5} />
             </button>
 
-            <div className="mt-10 bg-cream p-6 text-espresso md:hidden">
+            {meeshMenu && <div className="mt-10 bg-cream p-6 text-espresso md:hidden">
+              <p className="eyebrow mb-4">Meesh’s menu</p>
               <EstimateSummary serviceId={serviceId} guests={guests} travel={travel} addOnIds={addOnIds} tone="light" compact />
-            </div>
+            </div>}
+            <Link to="/join" onClick={onClose} className="mt-8 inline-block text-sm underline underline-offset-4">Request to join the House Call pros</Link>
           </form>
         </div>
       </div>
@@ -313,7 +373,7 @@ export default function BookingModal(props: Props) {
               Terms &amp; <em className="italic text-bronze">conditions</em>
             </h2>
             <p id="terms-text" className="mt-5 text-[14px] leading-relaxed text-espresso/75">
-              {TERMS_TEXT}
+              {termsText}
             </p>
             <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <button type="button" onClick={closeTerms} className="btn-ghost w-full sm:w-auto">

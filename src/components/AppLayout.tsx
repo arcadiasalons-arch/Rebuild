@@ -9,6 +9,7 @@ import Retail from './hcb/Retail';
 import Footer from './hcb/Footer';
 import BookingModal from './hcb/BookingModal';
 import InstallPrompt from './hcb/InstallPrompt';
+import Community from './hcb/Community';
 
 export default function AppLayout() {
   const [serviceId, setServiceId] = useState<ServiceId>('house-call');
@@ -50,6 +51,7 @@ export default function AppLayout() {
           onRequest={openBooking}
         />
         <Retail />
+        <Community />
       </main>
       <Footer onBook={openBooking} />
 
@@ -62,10 +64,6 @@ export default function AppLayout() {
         guests={guests}
         travel={travel}
         addOnIds={addOnIds}
-        onService={handleService}
-        onTravel={setTravel}
-        onGuests={setGuests}
-        onToggleAddOn={toggleAddOn}
       />
     </div>
   );
