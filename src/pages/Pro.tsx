@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import BookingModal from '@/components/hcb/BookingModal';
 import { getProvider, safeWebUrl } from '@/data/providers';
@@ -9,6 +9,11 @@ export default function Pro() {
   const pro = getProvider(slug);
   const [open, setOpen] = useState(false);
   const close = useCallback(() => setOpen(false), []);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    headingRef.current?.focus({ preventScroll: true });
+  }, [slug]);
   if (!pro) return <NotFound />;
   const image = safeWebUrl(pro.imageUrl);
   const website = safeWebUrl(pro.websiteUrl);
@@ -21,7 +26,7 @@ export default function Pro() {
       <main className="mx-auto grid max-w-5xl gap-10 py-16 md:grid-cols-2">
         <div>
           <p className="eyebrow">House Call pro</p>
-          <h1 className="display mt-4 break-words text-6xl">{pro.name}</h1>
+          <h1 ref={headingRef} tabIndex={-1} className="display mt-4 break-words text-6xl">{pro.name}</h1>
           {pro.serviceArea && <p className="mt-5 text-bronze">{pro.serviceArea}</p>}
           {pro.bio && <p className="mt-6 whitespace-pre-line text-[16px] leading-relaxed text-espresso/75">{pro.bio}</p>}
           {website && <a href={website} target="_blank" rel="noopener noreferrer" className="mt-6 inline-block underline underline-offset-4">More from {pro.name}</a>}

@@ -81,16 +81,24 @@ export default function BookingModal(props: Props) {
     const previousOverflow = document.body.style.overflow;
     const previousFocus = document.activeElement as HTMLElement | null;
     document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      previousFocus?.focus();
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
-      if (termsOpen) setTermsOpen(false);
-      else onClose();
+      if (termsOpen) {
+        setTermsOpen(false);
+        continueRef.current?.focus();
+      } else onClose();
     };
     window.addEventListener('keydown', onKey);
     return () => {
-      document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', onKey);
-      previousFocus?.focus();
     };
   }, [open, onClose, termsOpen]);
 

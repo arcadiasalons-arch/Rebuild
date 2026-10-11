@@ -1,9 +1,14 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { buildSmsLink } from '@/data/brand';
 
 export default function Join() {
   const [form, setForm] = useState({ name: '', business: '', area: '', contact: '', info: '' });
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    headingRef.current?.focus({ preventScroll: true });
+  }, []);
   const set = (key: keyof typeof form, value: string) => setForm((prev) => ({ ...prev, [key]: value }));
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -23,7 +28,7 @@ export default function Join() {
       <div className="mx-auto max-w-2xl">
         <Link to="/" className="eyebrow">House Call Bronze</Link>
         <main className="py-12">
-          <h1 className="display text-4xl sm:text-5xl">Join the House Call pros</h1>
+          <h1 ref={headingRef} tabIndex={-1} className="display text-4xl sm:text-5xl">Join the House Call pros</h1>
           <p className="mt-6 leading-relaxed text-espresso/75">We’re sunless pros who believe in building each other up. There’s room for all of us to grow and glow together. Tell Meesh a little about you.</p>
           <form onSubmit={submit} className="mt-10 space-y-6">
             <div>
