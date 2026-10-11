@@ -1,21 +1,21 @@
-import { Link, useLocation } from 'react-router-dom';
-import { useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { BRAND, IMAGES, buildSmsLink } from '@/data/brand';
 import { InstagramIcon, MessageIcon } from '@/components/hcb/icons';
 
 const NotFound = () => {
-  const location = useLocation();
-
-  useEffect(() => {
-    document.title = 'Page not found — House Call Bronze';
-    console.error('404 Error: User attempted to access non-existent route:', location.pathname);
-  }, [location.pathname]);
-
   return (
     <div className="grain relative flex min-h-screen flex-col overflow-hidden bg-cream text-espresso">
       <header className="relative mx-auto flex w-full max-w-[1400px] items-center justify-between px-5 py-6 md:px-10">
         <Link to="/" className="flex items-center gap-3 font-serif text-[19px] tracking-[0.16em]">
-          <img src={IMAGES.monogram} alt="" className="h-10 w-10 rounded-[9px]" />
+          <img
+            src={IMAGES.monogram}
+            alt=""
+            className="h-10 w-10 rounded-[9px]"
+            width={512}
+            height={512}
+            loading="lazy"
+            decoding="async"
+          />
           HOUSE CALL BRONZE
         </Link>
         <a

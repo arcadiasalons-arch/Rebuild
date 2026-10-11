@@ -24,7 +24,6 @@ export default function Admin() {
   const [integrations, setIntegrations] = useState<{ twilio: boolean; twilioMissing: string[] } | null>(null);
 
   useEffect(() => {
-    document.title = 'HouseCall Admin — House Call Bronze';
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setAuthReady(true);
@@ -105,7 +104,15 @@ export default function Admin() {
       <header className="sticky top-0 z-20 border-b border-espresso/10 bg-ivory/95 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-[1500px] items-center justify-between px-5">
           <div className="flex items-center gap-3">
-            <img src={IMAGES.monogram} alt="" className="h-9 w-9 rounded-lg" />
+            <img
+              src={IMAGES.monogram}
+              alt=""
+              className="h-9 w-9 rounded-lg"
+              width={512}
+              height={512}
+              loading="lazy"
+              decoding="async"
+            />
             <div>
               <p className="font-serif text-lg leading-none tracking-[0.14em]">HOUSE CALL BRONZE</p>
               <p className="text-[9px] uppercase tracking-[0.36em] text-gold">HouseCall</p>

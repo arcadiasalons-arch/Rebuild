@@ -22,6 +22,10 @@ export default function Footer({ onBook }: Props) {
               src={IMAGES.leatherBanner}
               alt="House Call Bronze — gold HCB monogram on dark leather"
               loading="lazy"
+              width={1200}
+              height={480}
+              sizes="(min-width: 1024px) 40vw, 100vw"
+              decoding="async"
               className="mx-auto w-full max-w-md shadow-[0_24px_60px_-28px_rgba(0,0,0,0.5)]"
             />
           </div>
@@ -50,7 +54,15 @@ export default function Footer({ onBook }: Props) {
         <div className="grid grid-cols-2 gap-10 border-t border-espresso/15 py-16 md:grid-cols-12">
           <div className="col-span-2 md:col-span-4">
             <div className="flex items-center gap-3">
-              <img src={IMAGES.monogram} alt="" className="h-11 w-11 rounded-[10px] shadow-sm" loading="lazy" />
+              <img
+                src={IMAGES.monogram}
+                alt=""
+                className="h-11 w-11 rounded-[10px] shadow-sm"
+                loading="lazy"
+                width={512}
+                height={512}
+                decoding="async"
+              />
               <p className="font-serif text-2xl tracking-[0.14em]">HOUSE CALL BRONZE</p>
             </div>
             <p className="mt-6 max-w-xs text-[14px] leading-relaxed text-espresso/65">{BRAND.positioning}</p>

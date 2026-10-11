@@ -24,7 +24,15 @@ export default function AdminLogin() {
   return (
     <div className="grain relative flex min-h-screen items-center justify-center bg-espresso px-5 text-cream">
       <form onSubmit={submit} className="relative w-full max-w-sm">
-        <img src={IMAGES.monogram} alt="House Call Bronze" className="mx-auto h-20 w-20 rounded-2xl" />
+        <img
+          src={IMAGES.monogram}
+          alt="House Call Bronze"
+          className="mx-auto h-20 w-20 rounded-2xl"
+          width={512}
+          height={512}
+          loading="eager"
+          decoding="async"
+        />
         <p className="mt-8 text-center text-[10px] uppercase tracking-[0.36em] text-gold">HouseCall</p>
         <h1 className="mt-3 text-center font-serif text-4xl font-light">
           {mode === 'in' ? 'Welcome back.' : 'Create your login.'}

@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { lazy, Suspense, useCallback, useState } from 'react';
 import { getService, type ServiceId, type TravelId } from '@/data/brand';
 import Nav from './hcb/Nav';
 import Hero from './hcb/Hero';
@@ -7,9 +7,10 @@ import Treatments from './hcb/Treatments';
 import About from './hcb/About';
 import Retail from './hcb/Retail';
 import Footer from './hcb/Footer';
-import BookingModal from './hcb/BookingModal';
-import InstallPrompt from './hcb/InstallPrompt';
 import Community from './hcb/Community';
+
+const BookingModal = lazy(() => import('./hcb/BookingModal'));
+const InstallPrompt = lazy(() => import('./hcb/InstallPrompt'));
 
 export default function AppLayout() {
   const [serviceId, setServiceId] = useState<ServiceId>('house-call');
@@ -55,16 +56,19 @@ export default function AppLayout() {
       </main>
       <Footer onBook={openBooking} />
 
-      <InstallPrompt />
-
-      <BookingModal
-        open={modalOpen}
-        onClose={closeBooking}
-        serviceId={serviceId}
-        guests={guests}
-        travel={travel}
-        addOnIds={addOnIds}
-      />
+      <Suspense fallback={null}>
+        <InstallPrompt />
+        {modalOpen && (
+          <BookingModal
+            open={modalOpen}
+            onClose={closeBooking}
+            serviceId={serviceId}
+            guests={guests}
+            travel={travel}
+            addOnIds={addOnIds}
+          />
+        )}
+      </Suspense>
     </div>
   );
 }

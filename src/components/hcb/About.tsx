@@ -18,6 +18,10 @@ export default function About() {
                 src={IMAGES.headshot}
                 fallback={IMAGES.fallbackSilk}
                 alt="Meesh, founder of House Call Bronze custom mobile spray tans in Spokane"
+                width={640}
+                height={800}
+                sizes="(min-width: 768px) 260px, (min-width: 640px) 160px, 128px"
+                loading="lazy"
                 className="aspect-[4/5] w-32 shrink-0 shadow-[0_20px_50px_-25px_rgba(0,0,0,0.45)] ring-1 ring-gold/25 sm:w-40 md:w-full md:max-w-[260px]"
                 imgClassName="object-[50%_30%]"
               />
