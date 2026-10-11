@@ -1,0 +1,33 @@
+{
+  "name": "House Call Bronze",
+  "short_name": "HCB Glow",
+  "description": "Custom mobile spray tans by Meesh. Book, text and glow — Spokane + nearby.",
+  "id": "./",
+  "start_url": "./?source=pwa",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F4ECE1",
+  "theme_color": "#F4ECE1",
+  "categories": ["beauty", "lifestyle", "health"],
+  "icons": [
+    {
+      "src": "https://d64gsuwffb70l.cloudfront.net/6ab7c11864006fdf3a05a860_1790719426444_ed9f06d8.webp",
+      "sizes": "192x192",
+      "type": "image/webp",
+      "purpose": "any"
+    },
+    {
+      "src": "https://d64gsuwffb70l.cloudfront.net/6ab7c11864006fdf3a05a860_1790719426323_dce066b0.webp",
+      "sizes": "512x512",
+      "type": "image/webp",
+      "purpose": "any"
+    },
+    {
+      "src": "https://d64gsuwffb70l.cloudfront.net/6ab7c11864006fdf3a05a860_1790719426323_dce066b0.webp",
+      "sizes": "512x512",
+      "type": "image/webp",
+      "purpose": "maskable"
+    }
+  ]
+}

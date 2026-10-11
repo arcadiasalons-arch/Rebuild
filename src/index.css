@@ -1,0 +1,188 @@
+/* Fonts (Cormorant Garamond + Jost) load from index.html for faster first paint. */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+
+    /* Brand palette (RGB channels) — light */
+    --c-ivory: 251 247 241;
+    --c-cream: 244 236 225;
+    --c-blush: 235 207 198;
+    --c-petal: 245 225 220;
+    --c-espresso: 42 29 23;
+    --c-bronze: 122 78 51;
+    --c-gold: 168 134 79;
+
+    /* Cream / ivory base, espresso ink, blush + muted gold accents */
+    --background: 36 45% 96%;
+    --foreground: 20 30% 13%;
+
+    --card: 36 55% 98%;
+    --card-foreground: 20 30% 13%;
+
+    --popover: 36 55% 98%;
+    --popover-foreground: 20 30% 13%;
+
+    --primary: 20 30% 13%;
+    --primary-foreground: 36 55% 97%;
+
+    --secondary: 12 45% 90%;
+    --secondary-foreground: 20 30% 13%;
+
+    --muted: 33 30% 91%;
+    --muted-foreground: 22 12% 40%;
+
+    --accent: 37 35% 52%;
+    --accent-foreground: 20 30% 13%;
+
+    --destructive: 0 55% 42%;
+    --destructive-foreground: 36 55% 97%;
+
+    --border: 30 22% 84%;
+    --input: 30 22% 80%;
+    --ring: 37 35% 52%;
+
+    --radius: 0.125rem;
+
+    --sidebar-background: 36 45% 96%;
+    --sidebar-foreground: 20 30% 13%;
+    --sidebar-primary: 20 30% 13%;
+    --sidebar-primary-foreground: 36 55% 97%;
+    --sidebar-accent: 33 30% 91%;
+    --sidebar-accent-foreground: 20 30% 13%;
+    --sidebar-border: 30 22% 84%;
+    --sidebar-ring: 37 35% 52%;
+  }
+
+  /* Follows the visitor's phone / computer appearance setting automatically */
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+
+      --c-ivory: 21 17 14;
+      --c-cream: 30 24 20;
+      --c-blush: 92 62 54;
+      --c-petal: 44 33 28;
+      --c-espresso: 242 233 221;
+      --c-bronze: 214 165 131;
+      --c-gold: 201 164 105;
+
+      --background: 26 20% 7%;
+      --foreground: 34 45% 91%;
+      --card: 24 20% 10%;
+      --card-foreground: 34 45% 91%;
+      --popover: 24 20% 10%;
+      --popover-foreground: 34 45% 91%;
+      --primary: 34 45% 91%;
+      --primary-foreground: 26 20% 7%;
+      --secondary: 15 25% 22%;
+      --secondary-foreground: 34 45% 91%;
+      --muted: 24 16% 15%;
+      --muted-foreground: 30 15% 65%;
+      --accent: 37 45% 60%;
+      --accent-foreground: 26 20% 7%;
+      --destructive: 0 60% 55%;
+      --destructive-foreground: 34 45% 95%;
+      --border: 26 14% 22%;
+      --input: 26 14% 26%;
+      --ring: 37 45% 60%;
+
+      --sidebar-background: 26 20% 7%;
+      --sidebar-foreground: 34 45% 91%;
+      --sidebar-primary: 34 45% 91%;
+      --sidebar-primary-foreground: 26 20% 7%;
+      --sidebar-accent: 24 16% 15%;
+      --sidebar-accent-foreground: 34 45% 91%;
+      --sidebar-border: 26 14% 22%;
+      --sidebar-ring: 37 45% 60%;
+    }
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 80px;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-weight: 300;
+    transition: background-color 0.4s ease, color 0.4s ease;
+  }
+
+  ::selection {
+    background: rgb(var(--c-blush));
+    color: rgb(var(--c-espresso));
+  }
+}
+
+@layer components {
+  .eyebrow {
+    @apply font-sans text-[11px] uppercase tracking-[0.32em] text-gold;
+    font-weight: 500;
+  }
+
+  .display {
+    @apply font-serif font-light leading-[0.95] tracking-[-0.01em];
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-3 bg-espresso px-7 py-4 text-[11px] uppercase tracking-[0.28em] text-ivory transition-all duration-500 hover:bg-bronze focus:outline-none focus-visible:ring-1 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-ivory;
+    font-weight: 500;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-3 border border-espresso/70 px-7 py-4 text-[11px] uppercase tracking-[0.28em] text-espresso transition-all duration-500 hover:bg-espresso hover:text-ivory focus:outline-none focus-visible:ring-1 focus-visible:ring-gold;
+    font-weight: 500;
+  }
+
+  .link-underline {
+    @apply relative inline-block;
+  }
+  .link-underline::after {
+    content: '';
+    @apply absolute left-0 -bottom-0.5 h-px w-full origin-right scale-x-0 bg-current transition-transform duration-500;
+  }
+  .link-underline:hover::after {
+    @apply origin-left scale-x-100;
+  }
+
+  .field {
+    @apply w-full border-0 border-b border-espresso/25 bg-transparent px-0 py-3 text-[15px] text-espresso placeholder:text-espresso/35 focus:border-gold focus:outline-none focus:ring-0 transition-colors;
+  }
+
+  .field-label {
+    @apply block text-[10px] uppercase tracking-[0.28em] text-espresso/60;
+    font-weight: 500;
+  }
+
+  .grain::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.06;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
