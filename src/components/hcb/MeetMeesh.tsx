@@ -28,6 +28,7 @@ interface ChatMessage {
 interface ReplyDraft {
   text: string;
   meta?: string;
+  promptPhotoUpload?: boolean;
 }
 
 interface TanPreviewResult {
@@ -54,6 +55,8 @@ const INTRO_MESSAGE: ChatMessage = {
 
 const TAN_PREVIEW_MESSAGE =
   'Upload a clothed photo and I’ll make a local spray-tan mockup. It stays in your browser, and it’s only a visual preview — not a guarantee of the final result.';
+
+const PHOTO_PREVIEW_PROMPT = /see what (?:i|you|they) look like|what would (?:i|you|they) look like|spray tan preview|spray-tan preview|photo preview|upload a photo|upload photo|mockup|preview/i;
 
 const normalize = (value: string) => value.trim().toLowerCase();
 
@@ -115,6 +118,15 @@ const MEESH_FAQS: Array<{
       text:
         'You can book right here on the site or text Meesh directly. If you want, I can also point you to the booking link after we chat.',
       meta: 'Book now',
+    }),
+  },
+  {
+    test: PHOTO_PREVIEW_PROMPT,
+    reply: () => ({
+      text:
+        'Absolutely — upload a clothed photo and I’ll create a local spray-tan mockup so you can see the direction before booking. It stays in your browser and only appears after the image is generated.',
+      meta: 'Photo preview',
+      promptPhotoUpload: true,
     }),
   },
 ];
@@ -215,6 +227,10 @@ async function buildAnswer(question: string): Promise<ReplyDraft> {
   };
 }
 
+function shouldRevealPhotoUpload(text: string) {
+  return PHOTO_PREVIEW_PROMPT.test(text);
+}
+
 function useWhoopSound(incoming?: boolean) {
   const audioContextRef = useRef<AudioContext | null>(null);
 
@@ -286,26 +302,62 @@ async function createTanPreview(file: File): Promise<TanPreviewResult> {
     const context = canvas.getContext('2d');
     if (!context) throw new Error('Preview canvas is unavailable.');
 
+    context.filter = 'contrast(1.03) saturate(1.08) brightness(0.99)';
     context.drawImage(image, 0, 0, width, height);
-    context.save();
-    context.globalAlpha = 0.55;
-    context.filter = 'sepia(0.28) saturate(1.45) contrast(1.05) brightness(0.98)';
-    context.drawImage(image, 0, 0, width, height);
-    context.restore();
-    context.save();
+    context.filter = 'none';
+
+    const source = context.getImageData(0, 0, width, height);
+    const data = source.data;
+
+    const clamp = (value: number) => Math.max(0, Math.min(255, value));
+    const isSkinTone = (r: number, g: number, b: number) => {
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      return (
+        r > 95 &&
+        g > 40 &&
+        b > 20 &&
+        max - min > 15 &&
+        Math.abs(r - g) > 15 &&
+        r > g &&
+        r > b
+      );
+    };
+
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+      const alpha = data[i + 3];
+      if (alpha === 0) continue;
+
+      const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+      const warmLift = 0.16 + (1 - luminance) * 0.12;
+      const tanBoost = isSkinTone(r, g, b) ? 1.1 : 0.22;
+
+      data[i] = clamp(r * (1 - 0.15 * tanBoost) + 152 * tanBoost * warmLift);
+      data[i + 1] = clamp(g * (1 - 0.2 * tanBoost) + 102 * tanBoost * warmLift);
+      data[i + 2] = clamp(b * (1 - 0.26 * tanBoost) + 68 * tanBoost * warmLift);
+    }
+
+    context.putImageData(source, 0, 0);
+
+    const tanGlow = context.createLinearGradient(0, 0, width, height);
+    tanGlow.addColorStop(0, 'rgba(255, 228, 190, 0.14)');
+    tanGlow.addColorStop(0.5, 'rgba(192, 125, 68, 0.28)');
+    tanGlow.addColorStop(1, 'rgba(112, 69, 35, 0.12)');
     context.globalCompositeOperation = 'soft-light';
-    context.fillStyle = 'rgba(192, 125, 68, 0.24)';
+    context.fillStyle = tanGlow;
     context.fillRect(0, 0, width, height);
     context.globalCompositeOperation = 'multiply';
-    context.fillStyle = 'rgba(145, 88, 46, 0.12)';
+    context.fillStyle = 'rgba(130, 80, 42, 0.08)';
     context.fillRect(0, 0, width, height);
-    context.restore();
 
     const previewUrl = canvas.toDataURL('image/jpeg', 0.92);
     return {
       previewUrl,
       note:
-        'Local tan mockup created in your browser. It’s a visual guide, not an exact prediction.',
+        'Local spray-tan version created in your browser. It’s a visual guide, not an exact prediction.',
     };
   } finally {
     URL.revokeObjectURL(imageUrl);
@@ -321,6 +373,7 @@ export default function MeetMeesh({ onClose }: MeetMeeshProps) {
   const [previewError, setPreviewError] = useState('');
   const [soundOn, setSoundOn] = useState(true);
   const [showReadStory, setShowReadStory] = useState(false);
+  const [showPhotoUpload, setShowPhotoUpload] = useState(false);
 
   const conversationRef = useRef<HTMLDivElement | null>(null);
   const draftRef = useRef<HTMLTextAreaElement | null>(null);
@@ -374,6 +427,9 @@ export default function MeetMeesh({ onClose }: MeetMeeshProps) {
       if (pendingTimerRef.current) window.clearTimeout(pendingTimerRef.current);
       pendingTimerRef.current = window.setTimeout(async () => {
         const reply = await buildAnswer(value);
+        if (reply.promptPhotoUpload || shouldRevealPhotoUpload(value)) {
+          setShowPhotoUpload(true);
+        }
 
         if (soundOn) incomingSound();
 
@@ -428,7 +484,7 @@ export default function MeetMeesh({ onClose }: MeetMeeshProps) {
             id: `assistant-photo-${Date.now()}`,
             role: 'assistant',
             text:
-              'Here’s a local spray-tan mockup. It stays in this conversation, and it’s meant as a visual reference — not a promise of the exact final shade.',
+              'Here’s your spray-tanned version. It stays in this conversation, and it’s meant as a visual reference — not a promise of the exact final shade.',
             meta: result.note,
             image: {
               src: result.previewUrl,
@@ -531,7 +587,7 @@ export default function MeetMeesh({ onClose }: MeetMeeshProps) {
 
   return (
     <div className="fixed inset-0 z-[100] bg-[radial-gradient(circle_at_50%_0%,rgba(168,134,79,0.18),transparent_34%)]">
-      <div className="flex h-full w-full flex-col bg-[#140e0b]/92 backdrop-blur-sm">
+      <div className="flex h-full w-full flex-col bg-[#140e0b] backdrop-blur-sm">
         <header className="relative z-10 flex shrink-0 items-center justify-between border-b border-[#f7efe6]/10 px-5 py-4 sm:px-8">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-full border border-gold/50 bg-[#1f140f] font-serif text-lg italic text-gold">
@@ -569,10 +625,7 @@ export default function MeetMeesh({ onClose }: MeetMeeshProps) {
           </div>
         </header>
 
-        <div
-          ref={conversationRef}
-          className="relative z-10 flex-1 overflow-y-auto px-5 py-8 sm:px-8"
-        >
+        <div ref={conversationRef} className="relative z-10 flex-1 overflow-y-auto px-4 py-6 sm:px-8 sm:py-8">
           <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col justify-end">
             <div className="mb-8 text-center">
               <p className="text-[9px] uppercase tracking-[0.35em] text-gold/80">
@@ -583,7 +636,7 @@ export default function MeetMeesh({ onClose }: MeetMeeshProps) {
               </p>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-4" role="log" aria-live="polite" aria-relevant="additions text">
               {messages.map((message) => (
                 <div
                   key={message.id}
@@ -591,10 +644,10 @@ export default function MeetMeesh({ onClose }: MeetMeeshProps) {
                 >
                   <div className={`max-w-[90%] sm:max-w-[82%] ${message.role === 'user' ? 'text-right' : ''}`}>
                     <div
-                      className={`rounded-[24px] px-5 py-4 text-[15px] leading-[1.75] shadow-[0_18px_40px_rgba(0,0,0,0.18)] ${
+                      className={`rounded-[24px] px-4 py-4 text-[15px] leading-[1.75] shadow-[0_18px_40px_rgba(0,0,0,0.18)] sm:px-5 ${
                         message.role === 'user'
-                          ? 'rounded-br-[8px] bg-[#c28a54] text-[#1d110c]'
-                          : 'rounded-bl-[8px] border border-[#f7efe6]/10 bg-[#f5efe5] text-[#281a12]'
+                          ? 'rounded-br-[8px] bg-[#b97841] text-[#140d09]'
+                          : 'rounded-bl-[8px] border border-[#f7efe6]/12 bg-[#f7f1e8] text-[#25170f]'
                       }`}
                     >
                       <p className="whitespace-pre-wrap">{message.text}</p>
@@ -608,7 +661,7 @@ export default function MeetMeesh({ onClose }: MeetMeeshProps) {
                     </div>
                     <div
                       className={`mt-1.5 text-[10px] uppercase tracking-[0.18em] ${
-                        message.role === 'user' ? 'pr-2 text-right text-[#f7efe6]/40' : 'pl-2 text-[#f7efe6]/45'
+                        message.role === 'user' ? 'pr-2 text-right text-[#f7efe6]/55' : 'pl-2 text-[#f7efe6]/62'
                       }`}
                     >
                       {message.meta ?? (message.role === 'user' ? 'You' : 'Meesh')}
@@ -630,74 +683,79 @@ export default function MeetMeesh({ onClose }: MeetMeeshProps) {
               )}
             </div>
 
-            <div className="mt-6 rounded-[28px] border border-[#f7efe6]/10 bg-[#1b120e]/94 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.22)]">
-              <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-[#f7efe6]/45">
-                <Sparkles className="h-3.5 w-3.5 text-gold" />
-                Try one of these
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {suggestedPrompts.map((prompt) => (
+            {showPhotoUpload ? (
+              <div className="mt-6 rounded-[28px] border border-[#f7efe6]/10 bg-[#f7f1e8] p-4 text-[#25170f] shadow-[0_20px_60px_rgba(0,0,0,0.18)]">
+                <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-[#7b5f4c]">
+                  <ImageUp className="h-3.5 w-3.5 text-[#8c623f]" />
+                  Tan preview photo
+                </div>
+                <p className="mt-2 text-sm leading-relaxed text-[#5f4638]">
+                  {TAN_PREVIEW_MESSAGE}
+                </p>
+
+                <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-[18px] border border-[#281a12]/10 bg-white/90 p-3 text-sm leading-relaxed">
+                  <input
+                    type="checkbox"
+                    checked={photoConsent}
+                    onChange={(event) => setPhotoConsent(event.target.checked)}
+                    className="mt-1 h-4 w-4 rounded border-[#8c623f] text-[#8c623f] focus:ring-[#8c623f]"
+                  />
+                  <span>
+                    I confirm this is a clothed photo of an adult user, and I want a local spray-tan visual mockup.
+                  </span>
+                </label>
+
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <input
+                    ref={photoInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePhotoChange}
+                    className="hidden"
+                  />
                   <button
-                    key={prompt}
                     type="button"
-                    onClick={() => void submitMessage(prompt)}
-                    className="rounded-full border border-[#f7efe6]/12 bg-[#f7efe6]/6 px-3.5 py-2 text-left text-[12px] leading-tight text-[#f7efe6]/80 transition hover:border-gold hover:bg-[#f7efe6]/10 hover:text-[#fff6ea] focus:outline-none focus:ring-2 focus:ring-gold"
+                    onClick={openPhotoPicker}
+                    disabled={!photoConsent || photoPreviewing}
+                    className="inline-flex items-center gap-2 rounded-full bg-[#8c623f] px-4 py-2 text-[10px] uppercase tracking-[0.18em] text-[#fff8ef] transition hover:bg-[#a26e43] disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {prompt}
+                    {photoPreviewing ? 'Building preview…' : 'Upload photo'}
                   </button>
-                ))}
+                  <span className="text-[11px] leading-snug text-[#7b5f4c]">
+                    Processed locally in your browser.
+                  </span>
+                </div>
+                {previewError && <p className="mt-3 text-sm text-[#9b4c3f]">{previewError}</p>}
               </div>
-            </div>
-
-            <div className="mt-4 rounded-[28px] border border-[#f7efe6]/10 bg-[#f5efe5] p-4 text-[#281a12] shadow-[0_20px_60px_rgba(0,0,0,0.12)]">
-              <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-[#7b5f4c]">
-                <ImageUp className="h-3.5 w-3.5 text-[#8c623f]" />
-                Tan preview photo
+            ) : (
+              <div className="mt-6 rounded-[28px] border border-[#f7efe6]/10 bg-[#1b120e] p-4 shadow-[0_20px_60px_rgba(0,0,0,0.22)]">
+                <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-[#f7efe6]/45">
+                  <Sparkles className="h-3.5 w-3.5 text-gold" />
+                  Ask for a preview
+                </div>
+                <p className="mt-2 text-sm leading-relaxed text-[#f7efe6]/70">
+                  Ask what you’d look like with a spray tan, and I’ll unlock the photo mockup.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {suggestedPrompts.map((prompt) => (
+                    <button
+                      key={prompt}
+                      type="button"
+                      onClick={() => void submitMessage(prompt)}
+                      className="rounded-full border border-[#f7efe6]/12 bg-[#f7efe6]/8 px-3.5 py-2 text-left text-[12px] leading-tight text-[#f7efe6]/88 transition hover:border-gold hover:bg-[#f7efe6]/14 hover:text-[#fff6ea] focus:outline-none focus:ring-2 focus:ring-gold"
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <p className="mt-2 text-sm leading-relaxed text-[#5f4638]">
-                {TAN_PREVIEW_MESSAGE}
-              </p>
-
-              <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-[18px] border border-[#281a12]/10 bg-white/70 p-3 text-sm leading-relaxed">
-                <input
-                  type="checkbox"
-                  checked={photoConsent}
-                  onChange={(event) => setPhotoConsent(event.target.checked)}
-                  className="mt-1 h-4 w-4 rounded border-[#8c623f] text-[#8c623f] focus:ring-[#8c623f]"
-                />
-                <span>
-                  I confirm this is a clothed photo of an adult user, and I want a local spray-tan visual mockup.
-                </span>
-              </label>
-
-              <div className="mt-4 flex flex-wrap items-center gap-3">
-                <input
-                  ref={photoInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handlePhotoChange}
-                  className="hidden"
-                />
-                <button
-                  type="button"
-                  onClick={openPhotoPicker}
-                  disabled={!photoConsent || photoPreviewing}
-                  className="inline-flex items-center gap-2 rounded-full bg-[#8c623f] px-4 py-2 text-[10px] uppercase tracking-[0.18em] text-[#fff8ef] transition hover:bg-[#a26e43] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {photoPreviewing ? 'Building preview…' : 'Upload photo'}
-                </button>
-                <span className="text-[11px] leading-snug text-[#7b5f4c]">
-                  Processed locally in your browser.
-                </span>
-              </div>
-              {previewError && <p className="mt-3 text-sm text-[#9b4c3f]">{previewError}</p>}
-            </div>
+            )}
           </div>
         </div>
 
         <form
           onSubmit={onSubmit}
-          className="relative z-10 shrink-0 border-t border-[#f7efe6]/10 bg-[#0f0a08]/96 px-5 py-4 backdrop-blur-md sm:px-8"
+          className="relative z-10 shrink-0 border-t border-[#f7efe6]/10 bg-[#100b09] px-4 py-4 backdrop-blur-md sm:px-8"
         >
           <div className="mx-auto flex w-full max-w-2xl flex-col gap-3">
             <label htmlFor="meesh-message" className="sr-only">
@@ -716,7 +774,7 @@ export default function MeetMeesh({ onClose }: MeetMeeshProps) {
               }}
               rows={2}
               placeholder="Ask about spray tans, Meesh, or anything else you want to know…"
-              className="min-h-[84px] w-full resize-none rounded-[22px] border border-[#f7efe6]/12 bg-[#f5efe5] px-4 py-3 text-[15px] leading-relaxed text-[#281a12] placeholder:text-[#6f5a48] focus:outline-none focus:ring-2 focus:ring-gold"
+              className="min-h-[84px] w-full resize-none rounded-[22px] border border-[#f7efe6]/12 bg-[#f7f1e8] px-4 py-3 text-[15px] leading-relaxed text-[#25170f] placeholder:text-[#7a6655] focus:outline-none focus:ring-2 focus:ring-gold"
             />
             <div className="flex flex-wrap items-center justify-between gap-3">
               <button
