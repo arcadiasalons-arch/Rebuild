@@ -1,5 +1,14 @@
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowRight, ChevronDown, Globe, Sparkles, Volume2, VolumeX, X } from 'lucide-react';
+import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ArrowRight,
+  ChevronDown,
+  Globe,
+  ImageUp,
+  Sparkles,
+  Volume2,
+  VolumeX,
+  X,
+} from 'lucide-react';
 
 interface MeetMeeshProps {
   onClose: () => void;
@@ -10,11 +19,20 @@ interface ChatMessage {
   role: 'user' | 'assistant';
   text: string;
   meta?: string;
+  image?: {
+    src: string;
+    alt: string;
+  };
 }
 
 interface ReplyDraft {
   text: string;
   meta?: string;
+}
+
+interface TanPreviewResult {
+  previewUrl: string;
+  note: string;
 }
 
 const QUICK_PROMPTS = [
@@ -33,6 +51,9 @@ const INTRO_MESSAGE: ChatMessage = {
     'Hi, I’m Meesh. Ask me anything about spray tans, House Call Bronze, or even a random question — I’ll answer what I can and look up public info when it helps.',
   meta: 'Ready to chat',
 };
+
+const TAN_PREVIEW_MESSAGE =
+  'Upload a clothed photo and I’ll make a local spray-tan mockup. It stays in your browser, and it’s only a visual preview — not a guarantee of the final result.';
 
 const normalize = (value: string) => value.trim().toLowerCase();
 
@@ -242,15 +263,68 @@ function useWhoopSound(incoming?: boolean) {
   }, [incoming]);
 }
 
+async function createTanPreview(file: File): Promise<TanPreviewResult> {
+  const imageUrl = URL.createObjectURL(file);
+
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error('Could not load the uploaded image.'));
+      img.src = imageUrl;
+    });
+
+    const maxWidth = 1200;
+    const scale = Math.min(1, maxWidth / image.naturalWidth);
+    const width = Math.max(1, Math.round(image.naturalWidth * scale));
+    const height = Math.max(1, Math.round(image.naturalHeight * scale));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Preview canvas is unavailable.');
+
+    context.drawImage(image, 0, 0, width, height);
+    context.save();
+    context.globalAlpha = 0.55;
+    context.filter = 'sepia(0.28) saturate(1.45) contrast(1.05) brightness(0.98)';
+    context.drawImage(image, 0, 0, width, height);
+    context.restore();
+    context.save();
+    context.globalCompositeOperation = 'soft-light';
+    context.fillStyle = 'rgba(192, 125, 68, 0.24)';
+    context.fillRect(0, 0, width, height);
+    context.globalCompositeOperation = 'multiply';
+    context.fillStyle = 'rgba(145, 88, 46, 0.12)';
+    context.fillRect(0, 0, width, height);
+    context.restore();
+
+    const previewUrl = canvas.toDataURL('image/jpeg', 0.92);
+    return {
+      previewUrl,
+      note:
+        'Local tan mockup created in your browser. It’s a visual guide, not an exact prediction.',
+    };
+  } finally {
+    URL.revokeObjectURL(imageUrl);
+  }
+}
+
 export default function MeetMeesh({ onClose }: MeetMeeshProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([INTRO_MESSAGE]);
   const [draft, setDraft] = useState('');
   const [isThinking, setIsThinking] = useState(false);
+  const [photoConsent, setPhotoConsent] = useState(false);
+  const [photoPreviewing, setPhotoPreviewing] = useState(false);
+  const [previewError, setPreviewError] = useState('');
   const [soundOn, setSoundOn] = useState(true);
   const [showReadStory, setShowReadStory] = useState(false);
 
   const conversationRef = useRef<HTMLDivElement | null>(null);
   const draftRef = useRef<HTMLTextAreaElement | null>(null);
+  const photoInputRef = useRef<HTMLInputElement | null>(null);
   const pendingTimerRef = useRef<number | null>(null);
 
   const outgoingSound = useWhoopSound(false);
@@ -312,6 +386,79 @@ export default function MeetMeesh({ onClose }: MeetMeeshProps) {
     },
     [incomingSound, isThinking, outgoingSound, soundOn]
   );
+
+  const handlePhotoChange = useCallback(
+    async (event: ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      event.target.value = '';
+      if (!file) return;
+
+      setPreviewError('');
+      if (!photoConsent) {
+        setPreviewError('Please confirm the photo is clothed and you have permission before uploading.');
+        return;
+      }
+
+      if (!file.type.startsWith('image/')) {
+        setPreviewError('Please upload a photo file.');
+        return;
+      }
+
+      if (file.size > 12 * 1024 * 1024) {
+        setPreviewError('Please use a photo smaller than 12 MB.');
+        return;
+      }
+
+      setPhotoPreviewing(true);
+      setMessages((current) => [
+        ...current,
+        {
+          id: `user-photo-${Date.now()}`,
+          role: 'user',
+          text: 'I uploaded a clothed photo for a tan preview.',
+          meta: 'Photo upload',
+        },
+      ]);
+
+      try {
+        const result = await createTanPreview(file);
+        setMessages((current) => [
+          ...current,
+          {
+            id: `assistant-photo-${Date.now()}`,
+            role: 'assistant',
+            text:
+              'Here’s a local spray-tan mockup. It stays in this conversation, and it’s meant as a visual reference — not a promise of the exact final shade.',
+            meta: result.note,
+            image: {
+              src: result.previewUrl,
+              alt: 'Local spray tan preview mockup',
+            },
+          },
+          {
+            id: `assistant-photo-followup-${Date.now()}`,
+            role: 'assistant',
+            text:
+              'What do you think? If you like the direction, I can help you book Meesh or send you to House Call Bronze to check for specials.',
+            meta: 'Next step',
+          },
+        ]);
+      } catch {
+        setPreviewError('I couldn’t build the preview from that image. Please try another photo.');
+      } finally {
+        setPhotoPreviewing(false);
+      }
+    },
+    [photoConsent]
+  );
+
+  const openPhotoPicker = useCallback(() => {
+    if (!photoConsent) {
+      setPreviewError('Please confirm the clothed-photo consent first.');
+      return;
+    }
+    photoInputRef.current?.click();
+  }, [photoConsent]);
 
   const onSubmit = useCallback(
     (event: FormEvent<HTMLFormElement>) => {
@@ -451,6 +598,13 @@ export default function MeetMeesh({ onClose }: MeetMeeshProps) {
                       }`}
                     >
                       <p className="whitespace-pre-wrap">{message.text}</p>
+                      {message.image && (
+                        <img
+                          src={message.image.src}
+                          alt={message.image.alt}
+                          className="mt-4 w-full rounded-[18px] border border-[#281a12]/10 object-cover"
+                        />
+                      )}
                     </div>
                     <div
                       className={`mt-1.5 text-[10px] uppercase tracking-[0.18em] ${
@@ -493,6 +647,50 @@ export default function MeetMeesh({ onClose }: MeetMeeshProps) {
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div className="mt-4 rounded-[28px] border border-[#f7efe6]/10 bg-[#f5efe5] p-4 text-[#281a12] shadow-[0_20px_60px_rgba(0,0,0,0.12)]">
+              <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-[#7b5f4c]">
+                <ImageUp className="h-3.5 w-3.5 text-[#8c623f]" />
+                Tan preview photo
+              </div>
+              <p className="mt-2 text-sm leading-relaxed text-[#5f4638]">
+                {TAN_PREVIEW_MESSAGE}
+              </p>
+
+              <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-[18px] border border-[#281a12]/10 bg-white/70 p-3 text-sm leading-relaxed">
+                <input
+                  type="checkbox"
+                  checked={photoConsent}
+                  onChange={(event) => setPhotoConsent(event.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-[#8c623f] text-[#8c623f] focus:ring-[#8c623f]"
+                />
+                <span>
+                  I confirm this is a clothed photo of an adult user, and I want a local spray-tan visual mockup.
+                </span>
+              </label>
+
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoChange}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={openPhotoPicker}
+                  disabled={!photoConsent || photoPreviewing}
+                  className="inline-flex items-center gap-2 rounded-full bg-[#8c623f] px-4 py-2 text-[10px] uppercase tracking-[0.18em] text-[#fff8ef] transition hover:bg-[#a26e43] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {photoPreviewing ? 'Building preview…' : 'Upload photo'}
+                </button>
+                <span className="text-[11px] leading-snug text-[#7b5f4c]">
+                  Processed locally in your browser.
+                </span>
+              </div>
+              {previewError && <p className="mt-3 text-sm text-[#9b4c3f]">{previewError}</p>}
             </div>
           </div>
         </div>
