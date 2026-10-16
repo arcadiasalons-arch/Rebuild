@@ -16,11 +16,21 @@ export const BRAND = {
   studioAddress: 'Meesh’s studio · Spokane, WA',
   instagramHandle: '@house.call.bronze',
   instagramUrl: 'https://www.instagram.com/house.call.bronze',
+  whatsappUrl: 'https://wa.me/15097032928',
+  facebookUrl: 'https://www.facebook.com/share/19kDq7egCm/?mibextid=wwXIfr',
+  tiktokUrl: 'https://www.tiktok.com/@housecallbronze?_r=1&_t=ZT-9Aap63thQSc',
   phoneDisplay: '509-703-2928',
   phoneE164: '+15097032928',
 };
 
 export const TEL_LINK = `tel:${BRAND.phoneE164}`;
+
+export const SOCIAL_LINKS = [
+  { label: 'Instagram', href: BRAND.instagramUrl, icon: 'instagram' },
+  { label: 'WhatsApp', href: BRAND.whatsappUrl, icon: 'whatsapp' },
+  { label: 'Facebook', href: BRAND.facebookUrl, icon: 'facebook' },
+  { label: 'TikTok', href: BRAND.tiktokUrl, icon: 'tiktok' },
+] as const;
 
 export const buildSmsLink = (body: string) =>
   `sms:${BRAND.phoneE164}?body=${encodeURIComponent(body)}`;

@@ -1,8 +1,8 @@
 import { ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { BRAND, IMAGES, NAV_LINKS, SERVICES, TEL_LINK, TRAVEL, TREATMENTS, buildSmsLink } from '@/data/brand';
+import { BRAND, IMAGES, NAV_LINKS, SERVICES, SOCIAL_LINKS, TEL_LINK, TRAVEL, TREATMENTS, buildSmsLink } from '@/data/brand';
 import Reveal from './Reveal';
-import { InstagramIcon, MessageIcon } from './icons';
+import { MessageIcon, SocialIcon } from './icons';
 
 interface Props {
   onBook: () => void;
@@ -109,13 +109,20 @@ export default function Footer({ onBook }: Props) {
               <li>
                 <a href={TEL_LINK} className="link-underline">Call {BRAND.phoneDisplay}</a>
               </li>
-              <li>
-                <a href={BRAND.instagramUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2">
-                  <InstagramIcon /> <span className="link-underline">{BRAND.instagramHandle}</span>
-                </a>
-              </li>
-              <li className="text-espresso/55">{BRAND.serviceArea}</li>
             </ul>
+
+            <p className="mt-8 text-[10px] uppercase tracking-[0.3em] text-espresso/50">Socials</p>
+            <ul className="mt-5 space-y-3 text-[14px] text-espresso/80">
+              {SOCIAL_LINKS.map((link) => (
+                <li key={link.label}>
+                  <a href={link.href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2">
+                    <SocialIcon name={link.icon} />
+                    <span className="link-underline">{link.label}</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-8 text-[14px] text-espresso/55">{BRAND.serviceArea}</p>
           </div>
         </div>
 
