@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Menu, X } from 'lucide-react';
-import { BRAND, NAV_LINKS, TEL_LINK } from '@/data/brand';
-import { InstagramIcon } from './icons';
+import { BRAND, NAV_LINKS, SOCIAL_LINKS, TEL_LINK } from '@/data/brand';
+import { SocialIcon } from './icons';
 
 interface NavProps {
   onBook: () => void;
@@ -102,16 +102,29 @@ export default function Nav({ onBook }: NavProps) {
             ))}
           </nav>
 
-          <div className="hidden items-center gap-6 lg:flex">
-            <a
-              href={BRAND.instagramUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={`Instagram ${BRAND.instagramHandle}`}
-              className="text-espresso/80 transition-colors hover:text-gold"
-            >
-              <InstagramIcon className="h-[18px] w-[18px]" />
-            </a>
+          <div className="hidden items-center gap-4 xl:flex">
+            {SOCIAL_LINKS.map((link) => (
+              <a
+                key={link.label}
+                href={link.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.22em] text-espresso/80 transition-colors hover:text-gold"
+                aria-label={link.label}
+              >
+                <SocialIcon name={link.icon} className="h-[16px] w-[16px]" />
+                <span>{link.label}</span>
+              </a>
+            ))}
+          </div>
+
+          <div className="hidden items-center gap-6 lg:flex xl:hidden">
+            <button onClick={onBook} className="btn-primary !px-6 !py-3">
+              Book Now
+            </button>
+          </div>
+
+          <div className="hidden items-center gap-4 xl:flex">
             <button onClick={onBook} className="btn-primary !px-6 !py-3">
               Book Now
             </button>
@@ -165,11 +178,24 @@ export default function Nav({ onBook }: NavProps) {
               <Wordmark />
               <p className="mt-4 text-[11px] uppercase tracking-[0.28em] text-espresso/60">{BRAND.positioning}</p>
             </div>
-            <div className="flex items-center justify-between border-t border-espresso/10 pt-6 text-[12px] tracking-[0.14em] text-espresso/75">
-              <a href={TEL_LINK}>{BRAND.phoneDisplay}</a>
-              <a href={BRAND.instagramUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
-                <InstagramIcon /> {BRAND.instagramHandle}
-              </a>
+            <div className="border-t border-espresso/10 pt-6">
+              <p className="text-[10px] uppercase tracking-[0.3em] text-espresso/50">Socials</p>
+              <div className="mt-5 space-y-3 text-[12px] tracking-[0.14em] text-espresso/75">
+                {SOCIAL_LINKS.map((link) => (
+                  <a
+                    key={link.label}
+                    href={link.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2"
+                    aria-label={link.label}
+                  >
+                    <SocialIcon name={link.icon} />
+                    <span>{link.label}</span>
+                  </a>
+                ))}
+                <a href={TEL_LINK}>{BRAND.phoneDisplay}</a>
+              </div>
             </div>
           </div>
         </div>
