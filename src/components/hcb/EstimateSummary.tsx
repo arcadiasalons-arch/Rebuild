@@ -21,7 +21,7 @@ export default function EstimateSummary({ tone = 'dark', compact = false, ...inp
             {service.name}
             {service.perPerson && <span className={muted}> × {est.people}</span>}
           </span>
-          <span>${service.price * est.people}</span>
+          <span>${service.price * est.people}{service.id === 'house-call' && '+'}</span>
         </div>
         {chosen.map((a) => (
           <div key={a.id} className="flex justify-between gap-4">

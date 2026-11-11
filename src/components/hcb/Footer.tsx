@@ -15,7 +15,7 @@ export default function Footer({ onBook }: Props) {
     <footer id="contact" className="relative overflow-hidden border-t border-espresso/10 bg-cream text-espresso">
       <div className="grain absolute inset-0" />
       {/* Leather brand banner */}
-      <div className="relative mx-auto max-w-[1400px] px-5 pt-20 md:px-10 md:pt-28">
+      <div className="relative mx-auto max-w-[1400px] px-6 sm:px-10 lg:px-16 pt-20 md:pt-28">
         <Reveal className="grid grid-cols-1 items-center gap-12 lg:grid-cols-12">
           <div className="lg:col-span-5">
             <img
@@ -50,7 +50,7 @@ export default function Footer({ onBook }: Props) {
         </Reveal>
       </div>
 
-      <div className="relative mx-auto mt-20 max-w-[1400px] px-5 md:px-10">
+      <div className="relative mx-auto mt-20 max-w-[1400px] px-6 sm:px-10 lg:px-16">
         <div className="grid grid-cols-2 gap-10 border-t border-espresso/15 py-16 md:grid-cols-12">
           <div className="col-span-2 md:col-span-4">
             <div className="flex items-center gap-3">
@@ -71,9 +71,6 @@ export default function Footer({ onBook }: Props) {
           <div className="md:col-span-2 md:col-start-6">
             <p className="text-[10px] uppercase tracking-[0.3em] text-espresso/50">Explore</p>
             <ul className="mt-5 space-y-3 text-[14px]">
-              <li>
-                <button onClick={onBook} className="link-underline text-espresso/80 hover:text-espresso">Book Now</button>
-              </li>
               {NAV_LINKS.map((l) => (
                 <li key={l.id}>
                   <button onClick={() => go(l.id)} className="link-underline text-espresso/80 hover:text-espresso">

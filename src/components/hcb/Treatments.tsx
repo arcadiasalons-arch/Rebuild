@@ -66,7 +66,7 @@ export default function Treatments(props: TreatmentsProps) {
 
   return (
     <section id="treatments" className="relative bg-ivory">
-      <div className="mx-auto max-w-[1400px] px-5 py-24 md:px-10 md:py-36">
+      <div className="mx-auto max-w-[1400px] px-6 sm:px-10 lg:px-16 py-24 md:py-36">
         <Reveal className="max-w-3xl">
           <p className="eyebrow">Luxury treatments + add-ons</p>
           <h2 className="display mt-6 text-[clamp(2.6rem,5vw,4.75rem)] text-espresso">

@@ -33,7 +33,7 @@ export default function Reveal({ children, className = '', delay = 0, as: Tag = 
     return () => io.disconnect();
   }, []);
 
-  const hidden = from === 'left' ? 'opacity-0 -translate-x-10' : 'opacity-0 translate-y-6';
+  const hidden = from === 'left' ? 'opacity-0 -translate-x-4' : 'opacity-0 translate-y-3';
   const shown = from === 'left' ? 'opacity-100 translate-x-0' : 'opacity-100 translate-y-0';
 
   return (
@@ -41,8 +41,8 @@ export default function Reveal({ children, className = '', delay = 0, as: Tag = 
       ref={ref}
       style={{
         transitionDelay: `${delay}ms`,
-        transitionDuration: '1100ms',
-        transitionTimingFunction: 'cubic-bezier(.2,.7,.2,1)',
+        transitionDuration: '700ms',
+        transitionTimingFunction: 'cubic-bezier(.22,.61,.36,1)',
       }}
       className={`transition-all ${visible ? shown : hidden} ${className}`}
     >

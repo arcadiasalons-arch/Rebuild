@@ -11,7 +11,7 @@ export default function Hero({ onBook }: HeroProps) {
       <div className="grain absolute inset-0" />
       <div className="relative mx-auto grid max-w-[1400px] grid-cols-1 lg:min-h-[calc(100vh-72px)] lg:grid-cols-12 lg:items-center lg:gap-10">
         {/* Text */}
-        <div className="order-2 flex flex-col justify-between px-5 pb-14 pt-10 md:px-10 lg:order-1 lg:col-span-5 lg:py-16 lg:pr-0">
+        <div className="order-2 flex flex-col justify-between px-6 pb-14 pt-10 sm:px-10 lg:order-1 lg:pl-16 lg:col-span-5 lg:py-16 lg:pr-0">
           <div className="flex items-center gap-3 animate-fade-in">
             <span className="h-px w-10 bg-gold" />
             <span className="eyebrow">{BRAND.tagline} · {BRAND.serviceArea}</span>
@@ -54,7 +54,7 @@ export default function Hero({ onBook }: HeroProps) {
         </div>
 
         {/* Photo banner — shown in full, never cropped */}
-        <div className="order-1 px-0 pt-4 sm:px-5 md:px-10 lg:order-2 lg:col-span-7 lg:py-16 lg:pl-0">
+        <div className="order-1 px-6 pt-4 sm:px-10 lg:order-2 lg:col-span-7 lg:py-16 lg:pl-0 lg:pr-16">
           <figure className="relative animate-fade-in overflow-hidden shadow-[0_30px_80px_-30px_rgba(0,0,0,0.45)] sm:ring-1 sm:ring-gold/25">
             <img
               src={IMAGES.heroTriptych}

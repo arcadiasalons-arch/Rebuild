@@ -3,7 +3,7 @@ import { getPublishedProviders } from '@/data/providers';
 
 export default function Community() {
   return (
-    <section id="pros" className="bg-cream px-6 py-16 sm:px-10">
+    <section id="pros" className="bg-cream px-6 py-16 sm:px-10 lg:px-16">
       <div className="mx-auto max-w-5xl">
         <p className="eyebrow">House Call pros</p>
         <h2 className="display mt-4 text-4xl sm:text-5xl">Grow and <em className="text-bronze">glow together.</em></h2>
