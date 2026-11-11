@@ -38,7 +38,7 @@ export default function Retail() {
   return (
     <section id="retail" className="relative bg-cream">
       <div className="grain absolute inset-0" />
-      <div className="relative mx-auto max-w-[1400px] px-5 py-24 md:px-10 md:py-32">
+      <div className="relative mx-auto max-w-[1400px] px-6 sm:px-10 lg:px-16 py-24 md:py-32">
         <Reveal className="flex flex-col justify-between gap-6 md:flex-row md:items-end mb-12">
           <div>
             <p className="eyebrow">Sjolie</p>

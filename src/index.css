@@ -111,6 +111,7 @@
   html {
     scroll-behavior: smooth;
     scroll-padding-top: 80px;
+    overflow-x: hidden;
   }
 
   body {
@@ -126,6 +127,10 @@
 }
 
 @layer components {
+  .section-shell {
+    @apply mx-auto max-w-[1400px] px-6 py-20 sm:px-10 md:py-28 lg:px-16;
+  }
+
   .eyebrow {
     @apply font-sans text-[11px] uppercase tracking-[0.32em] text-gold;
     font-weight: 500;

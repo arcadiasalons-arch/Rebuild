@@ -77,7 +77,7 @@ export default function Nav({ onBook }: NavProps) {
               : 'bg-ivory/80'
         }`}
       >
-        <div className="mx-auto flex h-[72px] max-w-[1400px] items-center justify-between px-5 md:px-10">
+        <div className="mx-auto flex h-[72px] max-w-[1400px] items-center justify-between px-6 sm:px-10 lg:px-16">
           <a
             href="#top"
             onClick={(e) => {

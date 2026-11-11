@@ -132,8 +132,8 @@ export const SERVICES: Service[] = [
   {
     id: 'house-call',
     name: 'House Call',
-    price: 75,
-    priceLabel: '$75',
+    price: 90,
+    priceLabel: '$90+',
     description: 'Same custom tan at your home or hotel.',
     onSite: true,
   },

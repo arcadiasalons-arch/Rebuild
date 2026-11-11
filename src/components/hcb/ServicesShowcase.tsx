@@ -17,7 +17,7 @@ export default function ServicesShowcase({ selected, onSelect, onBook }: Props) 
   return (
     <section id="services" className="relative overflow-hidden bg-espresso text-cream">
       <div className="grain absolute inset-0" />
-      <div className="relative mx-auto grid max-w-[1400px] grid-cols-1 gap-12 px-5 py-24 md:px-10 md:py-32 lg:grid-cols-12 lg:gap-16">
+      <div className="relative mx-auto grid max-w-[1400px] grid-cols-1 gap-12 px-6 sm:px-10 lg:px-16 py-24 md:py-32 lg:grid-cols-12 lg:gap-16">
         <Reveal className="lg:col-span-5">
           <figure className="relative bg-[#1d1c20] p-3 ring-1 ring-gold/30">
             <img
@@ -76,13 +76,6 @@ export default function ServicesShowcase({ selected, onSelect, onBook }: Props) 
               </li>
             </ul>
             <div className="mt-10 flex flex-col gap-3 sm:flex-row">
-              <button
-                onClick={onBook}
-                className="group inline-flex items-center justify-center gap-3 bg-cream px-8 py-4 text-[11px] uppercase tracking-[0.28em] text-espresso transition-colors duration-500 hover:bg-blush"
-              >
-                Book Now
-                <ArrowRight className="h-3.5 w-3.5 transition-transform duration-500 group-hover:translate-x-1" strokeWidth={1.5} />
-              </button>
               <button
                 onClick={() => document.getElementById('treatments')?.scrollIntoView({ behavior: 'smooth' })}
                 className="inline-flex items-center justify-center border border-cream/40 px-8 py-4 text-[11px] uppercase tracking-[0.28em] transition-colors duration-500 hover:bg-cream hover:text-espresso"
